@@ -1,0 +1,35 @@
+pre-commit:
+  parallel: true
+  commands:
+    gofumpt:
+      glob: "*.go"
+      run: gofumpt -l -w {staged_files}
+      stage_fixed: true
+
+    goimports:
+      glob: "*.go"
+      run: '$(go env GOPATH)/bin/goimports -local github.com/ahmad/migrate -w {staged_files}'
+      stage_fixed: true
+
+    golangci-lint:
+      glob: "*.go"
+      run: golangci-lint run --fix ./...
+      stage_fixed: true
+
+    govet:
+      glob: "*.go"
+      run: CGO_ENABLED=1 go vet ./...
+
+    go-mod-tidy:
+      run: go mod tidy
+      stage_fixed: true
+
+pre-push:
+  commands:
+    tests:
+      run: CGO_ENABLED=1 go test -race -count=1 ./internal/...
+
+    coverage-check:
+      run: |
+        CGO_ENABLED=1 go test -coverprofile=/tmp/migrate-coverage.out -covermode=atomic ./internal/...
+        go tool cover -func=/tmp/migrate-coverage.out | grep total | awk '{if ($3+0 < 80) {print "Coverage below 80%: "$3; exit 1}}'

@@ -1,0 +1,17 @@
+profile: coverage.out
+
+threshold:
+  file: 70
+  package: 75
+  total: 80
+
+exclude:
+  paths:
+    - cmd/.*\/main\.go$
+    - \.pb\.go$
+
+override:
+  - path: internal/analyzer/rules/.*\.go
+    threshold: 90
+  - path: internal/executor/.*\.go
+    threshold: 85
