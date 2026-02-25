@@ -1,0 +1,18 @@
+# Database Migration Engine configuration
+# Copy to migrate.yml and edit for your environment.
+
+# PostgreSQL connection string (can also be set via MIGRATE_DATABASE_URL env var).
+database_url: "postgres://user:pass@localhost:5432/mydb?sslmode=disable"
+
+# Path to directory containing .sql migration files.
+migrations_dir: "./migrations"
+
+# Maximum time to wait for a table lock before aborting.
+lock_timeout: "5s"
+
+# Maximum time a single SQL statement can run before being cancelled.
+statement_timeout: "30s"
+
+# Target PostgreSQL version for version-aware analysis.
+# Affects rules like ADD COLUMN with DEFAULT (safe on PG 11+).
+target_pg_version: 14
