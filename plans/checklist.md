@@ -23,14 +23,14 @@ Each phase follows a structured workflow: plan → review → implement → revi
 
 > **Plan file:** [`plans/phases/phase-1-project-scaffolding-cli-skeleton.md`](phases/phase-1-project-scaffolding-cli-skeleton.md)
 
-- [ ] **Plan** — Read phase plan, understand scope and deliverables
-- [ ] **Review the plan** — Verify approach, clarify any ambiguities
-- [ ] **Implement** — Create go.mod, entry point, root command, 5 subcommand stubs, config loading
-- [ ] **Review the implementation** — Code review, check against plan requirements
-- [ ] **Test** — Run `make build` and verify `bin/migrate --help` shows all commands
-- [ ] **Fix** — Address any issues found during review or testing
-- [ ] **Update checklist** — Mark items complete
-- [ ] **Next** — Proceed to Phase 2
+- [x] **Plan** — Read phase plan, understand scope and deliverables
+- [x] **Review the plan** — Verify approach, clarify any ambiguities
+- [x] **Implement** — Create go.mod, entry point, root command, 5 subcommand stubs, config loading
+- [x] **Review the implementation** — Code review, check against plan requirements
+- [x] **Test** — Run `make build` and verify `bin/migrate --help` shows all commands
+- [x] **Fix** — Address any issues found during review or testing
+- [x] **Update checklist** — Mark items complete
+- [x] **Next** — Proceed to Phase 2
 
 ---
 
@@ -38,13 +38,13 @@ Each phase follows a structured workflow: plan → review → implement → revi
 
 > **Plan file:** [`plans/phases/phase-2-sql-parser-migration-loading.md`](phases/phase-2-sql-parser-migration-loading.md)
 
-- [ ] **Plan** — Read phase plan, understand scope and deliverables
-- [ ] **Review the plan** — Verify approach, clarify any ambiguities
-- [ ] **Implement** — Parser wrapper, migration type, file loader, sorter, test data files
-- [ ] **Review the implementation** — Code review, check against plan requirements
-- [ ] **Test** — Run `make test` — all parser and loader tests pass
-- [ ] **Fix** — Address any issues found during review or testing
-- [ ] **Update checklist** — Mark items complete
+- [x] **Plan** — Read phase plan, understand scope and deliverables
+- [x] **Review the plan** — Verify approach, clarify any ambiguities
+- [x] **Implement** — Parser wrapper, migration type, file loader, sorter, test data files
+- [x] **Review the implementation** — Code review, check against plan requirements
+- [x] **Test** — Run `make test` — all parser and loader tests pass
+- [x] **Fix** — Address any issues found during review or testing
+- [x] **Update checklist** — Mark items complete
 - [ ] **Next** — Proceed to Phase 3
 
 ---

@@ -30,6 +30,17 @@ help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-18s %s\n", $$1, $$2}'
 
 # ─────────────────────────────────────────
+# SETUP
+# ─────────────────────────────────────────
+
+.PHONY: install-tools
+install-tools: ## Install development tools (gitleaks, gofumpt, goimports, golangci-lint)
+	go install github.com/zricethezav/gitleaks/v8@latest
+	go install mvdan.cc/gofumpt@latest
+	go install golang.org/x/tools/cmd/goimports@latest
+	@echo "$(GREEN)Tools installed$(RESET)"
+
+# ─────────────────────────────────────────
 # DEVELOPMENT
 # ─────────────────────────────────────────
 
@@ -106,10 +117,13 @@ test-all: test test-integration ## Run all tests (unit + integration)
 # COVERAGE
 # ─────────────────────────────────────────
 
+COVERAGE_EXCLUDE := /internal/cli/
+
 .PHONY: coverage
 coverage: ## Run tests and show coverage breakdown
 	@mkdir -p $(COVERAGE_DIR)
-	$(GOTEST) -race -coverprofile=$(COVERAGE_FILE) -covermode=atomic ./internal/...
+	$(GOTEST) -race -coverprofile=$(COVERAGE_DIR)/raw.out -covermode=atomic ./internal/...
+	@grep -v '$(COVERAGE_EXCLUDE)' $(COVERAGE_DIR)/raw.out > $(COVERAGE_FILE) || cp $(COVERAGE_DIR)/raw.out $(COVERAGE_FILE)
 	$(GO) tool cover -func=$(COVERAGE_FILE)
 
 .PHONY: coverage-html

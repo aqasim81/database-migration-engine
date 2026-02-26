@@ -4,14 +4,14 @@
 
 Zero-downtime PostgreSQL schema migration CLI. Parses SQL with the real PG parser, detects dangerous DDL operations, suggests safe alternatives, executes with rollback capability.
 
-**Status:** Phase 1 — CLI skeleton with 5 subcommand stubs and config loading.
+**Status:** Phase 2 complete — SQL parser (pg_query_go v6) + migration file loading, sorting, checksums.
 
 ## Stack
 
 | Component | Choice |
 |---|---|
 | Language | Go 1.22+ |
-| SQL Parser | `pg_query_go` v5 (wraps libpg_query C library) |
+| SQL Parser | `pg_query_go` v6 (wraps libpg_query C library) |
 | CLI | Cobra |
 | PostgreSQL | pgx v5 |
 | Testing | go test + testify + testcontainers-go |
@@ -30,6 +30,7 @@ make fmt            # Format with gofumpt + goimports
 make coverage       # Coverage report
 make coverage-check # Fail if below 80%
 make audit          # Full gate: fmt + vet + lint + test + coverage
+make install-tools  # Install dev tools (gitleaks, gofumpt, goimports)
 ```
 
 ## Architecture
@@ -93,6 +94,16 @@ cmd/migrate/main.go → internal/cli/ → internal/{parser,migration,analyzer,pl
 - `refactor:` — code change that neither fixes a bug nor adds a feature
 - `chore:` — build process, tooling, dependencies
 - `docs:` — documentation only
+
+## Security
+
+- **No secrets in code or config files** — all credentials come from `MIGRATE_*` environment variables or CLI flags
+- **`migrate.yml` is gitignored** — only `config.example.yml` (with placeholder values) is committed
+- **`.env` files are gitignored** — use `.env.example` as a reference for required variables
+- **`gitleaks` runs on every commit** via lefthook pre-commit hook — install with `make install-tools`
+- **Use `config.RedactURL()`** when displaying database connection info in CLI output — never log raw database URLs
+- **`gosec` linter enabled** — catches common Go security issues automatically
+- **Broad `.gitignore` patterns** — covers `*.pem`, `*.key`, `*.p12`, `*.pfx`, `credentials.*`, `secrets.*`
 
 ## Key Design Decisions
 
