@@ -24,6 +24,9 @@ pre-commit:
       run: go mod tidy
       stage_fixed: true
 
+    gitleaks:
+      run: '$(go env GOPATH)/bin/gitleaks git --staged --no-banner'
+
 pre-push:
   commands:
     tests:

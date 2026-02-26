@@ -16,9 +16,23 @@ Thumbs.db
 *.swo
 *~
 
-# Environment
+# Environment & secrets
 .env
-.env.local
+.env.*
+!.env.example
+migrate.yml
+
+# TLS / SSL
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Credentials
+credentials.*
+secrets.*
+*.credential
+*.secret
 
 # Go
 vendor/

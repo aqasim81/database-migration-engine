@@ -1,0 +1,21 @@
+# Gitleaks configuration — secret scanning rules and allowlists.
+# See https://github.com/gitleaks/gitleaks#configuration
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Allow placeholder credentials in examples and tests"
+
+paths = [
+  '''config\.example\.yml''',
+  '''\.env\.example''',
+  '''plans/.*\.md''',
+]
+
+regexTarget = "line"
+regexes = [
+  '''postgres://user:pass@''',
+  '''postgres://localhost''',
+  '''postgres://test''',
+]
