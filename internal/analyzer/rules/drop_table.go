@@ -30,7 +30,7 @@ func (r *DropTableRule) Check(stmt *pg_query.RawStmt, ctx *analyzer.RuleContext)
 }
 
 func (r *DropTableRule) checkDrop(drop *pg_query.DropStmt, ctx *analyzer.RuleContext) []analyzer.Finding {
-	if drop.RemoveType != pg_query.ObjectType_OBJECT_TABLE {
+	if drop == nil || drop.RemoveType != pg_query.ObjectType_OBJECT_TABLE {
 		return nil
 	}
 
@@ -53,6 +53,10 @@ func (r *DropTableRule) checkDrop(drop *pg_query.DropStmt, ctx *analyzer.RuleCon
 }
 
 func (r *DropTableRule) checkTruncate(trunc *pg_query.TruncateStmt, ctx *analyzer.RuleContext) []analyzer.Finding {
+	if trunc == nil {
+		return nil
+	}
+
 	var tables []string
 
 	for _, rel := range trunc.Relations {

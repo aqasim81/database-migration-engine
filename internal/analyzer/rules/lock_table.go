@@ -23,6 +23,10 @@ func (r *LockTableRule) Check(stmt *pg_query.RawStmt, ctx *analyzer.RuleContext)
 	}
 
 	lock := node.LockStmt
+	if lock == nil {
+		return nil
+	}
+
 	var findings []analyzer.Finding
 
 	for _, rel := range lock.Relations {

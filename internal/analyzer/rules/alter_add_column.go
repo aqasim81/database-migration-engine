@@ -25,6 +25,10 @@ func (r *AddColumnRule) Check(stmt *pg_query.RawStmt, ctx *analyzer.RuleContext)
 	}
 
 	alt := node.AlterTableStmt
+	if alt == nil {
+		return nil
+	}
+
 	var findings []analyzer.Finding
 
 	for _, cmdNode := range alt.Cmds {
@@ -115,7 +119,6 @@ func isVolatileDefault(node *pg_query.Node) bool {
 
 	switch n := node.Node.(type) {
 	case *pg_query.Node_AConst:
-		_ = n
 		return false // literal constant — non-volatile
 	case *pg_query.Node_TypeCast:
 		if n.TypeCast.Arg != nil {

@@ -59,7 +59,7 @@ func TableName(rv *pg_query.RangeVar) string {
 
 // ExtractStmtSQL extracts the SQL text for a specific statement from the full SQL string.
 func ExtractStmtSQL(stmts []*pg_query.RawStmt, idx int, fullSQL string) string {
-	if idx < 0 || idx >= len(stmts) {
+	if len(stmts) == 0 || idx < 0 || idx >= len(stmts) || stmts[idx] == nil {
 		return ""
 	}
 

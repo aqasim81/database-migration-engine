@@ -23,7 +23,7 @@ func (r *CreateIndexRule) Check(stmt *pg_query.RawStmt, ctx *analyzer.RuleContex
 	}
 
 	idx := node.IndexStmt
-	if idx.Concurrent {
+	if idx == nil || idx.Concurrent {
 		return nil
 	}
 

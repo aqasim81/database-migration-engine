@@ -23,6 +23,10 @@ func (r *AddConstraintRule) Check(stmt *pg_query.RawStmt, ctx *analyzer.RuleCont
 	}
 
 	alt := node.AlterTableStmt
+	if alt == nil {
+		return nil
+	}
+
 	var findings []analyzer.Finding
 
 	for _, cmdNode := range alt.Cmds {

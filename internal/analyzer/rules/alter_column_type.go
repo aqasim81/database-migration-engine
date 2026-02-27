@@ -23,6 +23,10 @@ func (r *AlterColumnTypeRule) Check(stmt *pg_query.RawStmt, ctx *analyzer.RuleCo
 	}
 
 	alt := node.AlterTableStmt
+	if alt == nil {
+		return nil
+	}
+
 	var findings []analyzer.Finding
 
 	for _, cmdNode := range alt.Cmds {

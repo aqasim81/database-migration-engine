@@ -23,6 +23,9 @@ func (r *RenameRule) Check(stmt *pg_query.RawStmt, ctx *analyzer.RuleContext) []
 	}
 
 	rename := node.RenameStmt
+	if rename == nil {
+		return nil
+	}
 
 	if rename.RenameType == pg_query.ObjectType_OBJECT_TABLE {
 		return []analyzer.Finding{{

@@ -23,7 +23,7 @@ func (r *VacuumFullRule) Check(stmt *pg_query.RawStmt, ctx *analyzer.RuleContext
 	}
 
 	vacuum := node.VacuumStmt
-	if !isVacuumFull(vacuum) {
+	if vacuum == nil || !isVacuumFull(vacuum) {
 		return nil
 	}
 

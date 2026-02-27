@@ -28,7 +28,7 @@ func (r *AnalysisResult) HasHighOrCritical() bool {
 
 // TruncateSQL truncates a SQL string to maxLen characters for display.
 func TruncateSQL(sql string, maxLen int) string {
-	if len(sql) <= maxLen {
+	if maxLen < 4 || len(sql) <= maxLen { //nolint:mnd // need at least 4 chars for "x..."
 		return sql
 	}
 	return sql[:maxLen-3] + "..."
