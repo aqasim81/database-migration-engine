@@ -8,55 +8,17 @@ Zero-downtime PostgreSQL schema migration CLI. Parses SQL with the real PG parse
 
 ## Stack
 
-| Component | Choice |
-|---|---|
-| Language | Go 1.22+ |
-| SQL Parser | `pg_query_go` v6 (wraps libpg_query C library) |
-| CLI | Cobra |
-| PostgreSQL | pgx v5 |
-| Testing | go test + testify + testcontainers-go |
-| Config | YAML (gopkg.in/yaml.v3) |
-| Terminal UI | lipgloss |
+Go 1.22+ | pg_query_go v6 (C-backed PG parser) | Cobra CLI | pgx v5 | testify + testcontainers-go | YAML config (gopkg.in/yaml.v3) | lipgloss TUI
 
-## Build & Quality Commands
+## Key Commands
 
 ```bash
-# IMPORTANT: CGO_ENABLED=1 is required for ALL Go commands (pg_query_go wraps C)
-make build          # Build binary to bin/migrate
+# CGO_ENABLED=1 is required for ALL Go commands (pg_query_go wraps C)
+make audit          # Full gate: fmt + vet + lint + test + coverage (run before committing)
 make test           # Unit tests with -race
 make test-integration  # Integration tests (requires Docker)
 make lint           # golangci-lint
-make fmt            # Format with gofumpt + goimports
-make coverage       # Coverage report
 make coverage-check # Fail if below 80%
-make audit          # Full gate: fmt + vet + lint + test + coverage
-make install-tools  # Install dev tools (gitleaks, gofumpt, goimports)
-```
-
-## Directory Structure
-
-```
-database_migration_engine/
-├── cmd/migrate/main.go              # Entry point
-├── internal/
-│   ├── cli/                         # Cobra commands + output formatting
-│   ├── config/                      # YAML config + env var + flag merging
-│   ├── parser/                      # pg_query_go wrapper → typed AST
-│   ├── migration/                   # Migration type, file loader, sorter
-│   ├── analyzer/                    # Danger detection orchestrator
-│   │   └── rules/                   # One file per detection rule
-│   ├── planner/                     # Execution plan builder (future)
-│   ├── executor/                    # Transaction mgmt, timeouts (future)
-│   ├── tracker/                     # schema_migrations CRUD (future)
-│   └── database/                    # pgx pool, advisory locks (future)
-├── testdata/migrations/             # Sample .sql files for testing
-├── .github/workflows/ci.yml        # CI pipeline
-├── .golangci.yml                    # Linter config
-├── .testcoverage.yml                # Coverage thresholds
-├── lefthook.yml                     # Pre-commit/pre-push hooks
-├── Makefile                         # Build & quality commands
-├── config.example.yml               # Sample config (committed)
-└── CLAUDE.md                        # This file
 ```
 
 ## Architecture
@@ -65,131 +27,78 @@ database_migration_engine/
 cmd/migrate/main.go → internal/cli/ → internal/{parser,migration,analyzer,planner,executor,tracker,database}
 ```
 
-- `cmd/migrate/` — Thin entry point. No business logic.
-- `internal/cli/` — Cobra commands, output formatting.
-- `internal/config/` — YAML config loading, env var overrides, flag merging, URL redaction.
-- `internal/parser/` — Wraps pg_query_go Parse(). Returns typed AST.
-- `internal/migration/` — Migration type, file loader, version sorter.
-- `internal/analyzer/` — Danger detection engine. Rule interface + 9 rule implementations.
-- `internal/analyzer/rules/` — One file per detection rule. Each independently testable.
-- `internal/planner/` — Execution plan builder, impact estimation.
-- `internal/executor/` — Transaction management, lock/statement timeouts, advisory locks.
-- `internal/tracker/` — schema_migrations table CRUD.
-- `internal/database/` — pgx pool setup, advisory lock helpers.
-
-## Coding Standards
-
-### Go Conventions
-- All code in `internal/` — nothing exported to outside this module
-- No `utils/`, `helpers/`, `common/` packages — name packages by domain
-- Return `error`, never `panic` in library code
-- Wrap errors with context: `fmt.Errorf("loading migration %s: %w", path, err)`
-- Sentinel errors as package-level `var`: `var ErrNotFound = errors.New("not found")`
-- Use `errors.Is()` and `errors.As()` for error checking
-- Interfaces in the consumer package, not the provider
-
-### Linting
-- golangci-lint v2 with strict config (see `.golangci.yml`)
-- Every `//nolint` must specify the linter AND a reason: `//nolint:funlen // table-driven test with many cases`
-- Max cyclomatic complexity: 15 per function
-- Max cognitive complexity: 20 per function
-- Max function length: 80 lines / 40 statements
-
-### Testing Conventions
-- **Table-driven tests** for all pure logic (parser, analyzer rules, sorter, config)
-- **`t.Parallel()`** on every `func Test*` AND every `t.Run` subtest
-- **`require.*`** for preconditions and setup (stops test on failure)
-- **`assert.*`** for assertions (continues to check other assertions)
-- **`t.Helper()`** on ALL test helper functions (accurate line numbers in failures)
-- **`t.Cleanup()`** instead of `defer` in test helpers (runs even if helper is in separate function)
-- Test files next to source: `parser.go` → `parser_test.go`
-- Black-box tests use `package foo_test` to test the public API
-- White-box tests use `package foo` only when testing unexported logic
-- Test naming: `TestFunctionName_scenario_expected` (e.g., `TestParse_invalidSQL_returnsError`)
-- No test logic in test helpers — helpers set up state, tests make assertions
-
-### Coverage Targets
-- **90%** on `internal/analyzer/rules/` — these are the core value
-- **85%** on `internal/executor/`
-- **80%** total project
-- **70%** per-file floor
-
-### Commit Convention
-- `feat:` — new feature
-- `fix:` — bug fix
-- `test:` — adding or updating tests
-- `refactor:` — code change that neither fixes a bug nor adds a feature
-- `chore:` — build process, tooling, dependencies
-- `docs:` — documentation only
-
-### Attribution
-- **No AI attribution** — Do not include `Co-Authored-By`, "Generated by", or any reference to AI tools or AI assistants in commit messages, code comments, documentation, PR descriptions, or any project artifact
-
-## Security
-
-- **No secrets in code or config files** — all credentials come from `MIGRATE_*` environment variables or CLI flags
-- **`migrate.yml` is gitignored** — only `config.example.yml` (with placeholder values) is committed
-- **`.env` files are gitignored** — use `.env.example` as a reference for required variables
-- **`gitleaks` runs on every commit** via lefthook pre-commit hook — install with `make install-tools`
-- **Use `config.RedactURL()`** when displaying database connection info in CLI output — never log raw database URLs
-- **`gosec` linter enabled** — catches common Go security issues automatically
-- **Broad `.gitignore` patterns** — covers `*.pem`, `*.key`, `*.p12`, `*.pfx`, `credentials.*`, `secrets.*`
-
-## Error Handling
-
-- Return `error`, never `panic` in library code
-- Wrap errors with context: `fmt.Errorf("loading migration %s: %w", path, err)`
-- Sentinel errors as package-level `var`: `var ErrNotFound = errors.New("not found")`
-- Use `errors.Is()` and `errors.As()` for error checking
-- CLI layer (`internal/cli/`) is the only place that prints errors and sets exit codes
-- Database errors should include the operation context (e.g., which migration was being applied)
-
-## Git Workflow
-
-- Branch naming: `feat/`, `fix/`, `chore/` prefix
-- Conventional commits: `feat:`, `fix:`, `test:`, `refactor:`, `chore:`, `docs:`
-- One commit per logical change
-- CI runs on push to main and PRs to main (`.github/workflows/ci.yml`)
-- Pre-commit hooks via lefthook: gofumpt, goimports, golangci-lint, go vet, gitleaks
-- Pre-push hooks: tests with race detector, coverage check ≥80%
-
-## Anti-Patterns
-
-- **No `utils/`, `helpers/`, `common/` packages** — name packages by domain
-- **No raw SQL in application code** — all queries go through typed functions
-- **No `panic` in library code** — always return errors
-- **No `//nolint` without linter name and reason**
-- **No `interface{}` / `any` unless unavoidable** — use typed AST nodes from pg_query_go
-- **No global mutable state** — pass dependencies explicitly
-- **No test logic in test helpers** — helpers set up state, tests make assertions
-
-## Session Workflow
-
-1. `/clear` to start fresh
-2. Read `CLAUDE.md` for project context
-3. Check `plans/checklist.md` for current phase status
-4. Read the relevant phase plan from `plans/phases/`
-5. Implement in small chunks, test after each
-6. Run `make audit` before committing
-7. Commit with conventional commit message
-8. Update `plans/checklist.md` after completing a phase step
+- `cmd/migrate/` — Thin entry point, no business logic
+- `internal/cli/` — Cobra commands, output formatting, only place that prints errors/sets exit codes
+- `internal/config/` — YAML config, env var overrides, flag merging, URL redaction
+- `internal/parser/` — Wraps pg_query_go Parse(), returns typed AST
+- `internal/migration/` — Migration type, file loader, version sorter, checksums
+- `internal/analyzer/` — Danger detection engine. Rule interface + implementations in `rules/` (one file per rule)
+- `internal/planner/` — Execution plan builder, impact estimation (future)
+- `internal/executor/` — Transaction mgmt, lock/statement timeouts, advisory locks (future)
+- `internal/tracker/` — schema_migrations CRUD (future)
+- `internal/database/` — pgx pool, advisory lock helpers (future)
 
 ## Key Design Decisions
 
-1. **Real PostgreSQL parser** via pg_query_go (100% accurate for valid PG SQL)
+1. **Real PostgreSQL parser** via pg_query_go — 100% accurate for valid PG SQL
 2. **Rule-based analysis** — each danger rule is a standalone `Rule` interface implementation
 3. **Advisory locks** — `pg_try_advisory_lock` prevents concurrent migration runs
 4. **CREATE INDEX CONCURRENTLY** — detected and executed outside transaction (PG requirement)
 5. **PG version-aware** — rules adjust for target PG version (e.g., non-volatile DEFAULT safe on PG 11+)
 6. **CGO required** — pg_query_go wraps C library, `CGO_ENABLED=1` in all commands
 
+## Coding Conventions
+
+- All code in `internal/` — nothing exported outside this module
+- No `utils/`, `helpers/`, `common/` packages — name packages by domain
+- Return `error`, never `panic`; wrap with context: `fmt.Errorf("loading migration %s: %w", path, err)`
+- Sentinel errors as package-level `var`; check with `errors.Is()` / `errors.As()`
+- Interfaces in the consumer package, not the provider
+- No `interface{}` / `any` unless unavoidable — use typed AST nodes from pg_query_go
+- No global mutable state — pass dependencies explicitly
+- Database errors must include operation context (e.g., which migration was being applied)
+- Every `//nolint` must specify linter AND reason: `//nolint:funlen // table-driven test`
+- Complexity limits: cyclomatic 15, cognitive 20, function length 80 lines / 40 statements
+
+## Testing
+
+- Table-driven tests for all pure logic (parser, analyzer rules, sorter, config)
+- `t.Parallel()` on every `func Test*` AND every `t.Run` subtest
+- `require.*` for preconditions (stops on failure), `assert.*` for assertions (continues)
+- `t.Helper()` on all test helpers; `t.Cleanup()` instead of `defer` in helpers
+- Black-box tests (`package foo_test`) for public API; white-box (`package foo`) only for unexported logic
+- Naming: `TestFunctionName_scenario_expected`
+- Helpers set up state only — tests make assertions
+
+### Coverage Targets
+
+- **90%** on `internal/analyzer/rules/` (core value)
+- **85%** on `internal/executor/`
+- **80%** total project, **70%** per-file floor
+
+## Security
+
+- All credentials via `MIGRATE_*` env vars or CLI flags — no secrets in code
+- `migrate.yml` and `.env` are gitignored; only `config.example.yml` committed
+- Use `config.RedactURL()` for database URLs in CLI output — never log raw URLs
+- `gitleaks` on every commit via lefthook; `gosec` enabled in linter
+
+## Git & Workflow
+
+- Branch naming: `feat/`, `fix/`, `chore/` prefix
+- Conventional commits: `feat:`, `fix:`, `test:`, `refactor:`, `chore:`, `docs:`
+- **No AI attribution** — no `Co-Authored-By`, "Generated by", or AI references in any artifact
+- Pre-commit hooks: gofumpt, goimports, golangci-lint, go vet, gitleaks
+- Pre-push hooks: tests with race detector, coverage ≥80%
+
+## Session Workflow
+
+1. `/clear` → read `CLAUDE.md` → check `plans/checklist.md` for current phase
+2. Read relevant phase plan from `plans/phases/`
+3. Implement in small chunks, test after each
+4. `make audit` before committing
+5. Update `plans/checklist.md` after completing a phase step
+
 ## References
 
-- `plans/prd.md` — Full product requirements
-- `plans/implementation_plan.md` — Detailed 9-phase build plan (master reference)
-- `plans/checklist.md` — Phase-by-phase implementation checklist
-- `plans/phases/` — Individual phase plans (one file per phase)
-- `plans/project.md` — Project overview
-- `.golangci.yml` — Linter configuration
-- `.testcoverage.yml` — Coverage thresholds
-- `.github/workflows/ci.yml` — CI pipeline
+`plans/prd.md` (requirements) | `plans/implementation_plan.md` (9-phase plan) | `plans/checklist.md` (checklist) | `plans/phases/` (phase plans) | `.golangci.yml` | `.testcoverage.yml` | `.github/workflows/ci.yml`
