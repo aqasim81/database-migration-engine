@@ -37,5 +37,9 @@ secrets.*
 # Plans (internal implementation notes)
 plans/
 
+# Claude Code
+.claude/
+!.claude/commands/
+
 # Go
 vendor/

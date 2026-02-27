@@ -33,6 +33,32 @@ make audit          # Full gate: fmt + vet + lint + test + coverage
 make install-tools  # Install dev tools (gitleaks, gofumpt, goimports)
 ```
 
+## Directory Structure
+
+```
+database_migration_engine/
+├── cmd/migrate/main.go              # Entry point
+├── internal/
+│   ├── cli/                         # Cobra commands + output formatting
+│   ├── config/                      # YAML config + env var + flag merging
+│   ├── parser/                      # pg_query_go wrapper → typed AST
+│   ├── migration/                   # Migration type, file loader, sorter
+│   ├── analyzer/                    # Danger detection orchestrator
+│   │   └── rules/                   # One file per detection rule
+│   ├── planner/                     # Execution plan builder (future)
+│   ├── executor/                    # Transaction mgmt, timeouts (future)
+│   ├── tracker/                     # schema_migrations CRUD (future)
+│   └── database/                    # pgx pool, advisory locks (future)
+├── testdata/migrations/             # Sample .sql files for testing
+├── .github/workflows/ci.yml        # CI pipeline
+├── .golangci.yml                    # Linter config
+├── .testcoverage.yml                # Coverage thresholds
+├── lefthook.yml                     # Pre-commit/pre-push hooks
+├── Makefile                         # Build & quality commands
+├── config.example.yml               # Sample config (committed)
+└── CLAUDE.md                        # This file
+```
+
 ## Architecture
 
 ```
@@ -41,6 +67,7 @@ cmd/migrate/main.go → internal/cli/ → internal/{parser,migration,analyzer,pl
 
 - `cmd/migrate/` — Thin entry point. No business logic.
 - `internal/cli/` — Cobra commands, output formatting.
+- `internal/config/` — YAML config loading, env var overrides, flag merging, URL redaction.
 - `internal/parser/` — Wraps pg_query_go Parse(). Returns typed AST.
 - `internal/migration/` — Migration type, file loader, version sorter.
 - `internal/analyzer/` — Danger detection engine. Rule interface + 9 rule implementations.
@@ -108,6 +135,45 @@ cmd/migrate/main.go → internal/cli/ → internal/{parser,migration,analyzer,pl
 - **`gosec` linter enabled** — catches common Go security issues automatically
 - **Broad `.gitignore` patterns** — covers `*.pem`, `*.key`, `*.p12`, `*.pfx`, `credentials.*`, `secrets.*`
 
+## Error Handling
+
+- Return `error`, never `panic` in library code
+- Wrap errors with context: `fmt.Errorf("loading migration %s: %w", path, err)`
+- Sentinel errors as package-level `var`: `var ErrNotFound = errors.New("not found")`
+- Use `errors.Is()` and `errors.As()` for error checking
+- CLI layer (`internal/cli/`) is the only place that prints errors and sets exit codes
+- Database errors should include the operation context (e.g., which migration was being applied)
+
+## Git Workflow
+
+- Branch naming: `feat/`, `fix/`, `chore/` prefix
+- Conventional commits: `feat:`, `fix:`, `test:`, `refactor:`, `chore:`, `docs:`
+- One commit per logical change
+- CI runs on push to main and PRs to main (`.github/workflows/ci.yml`)
+- Pre-commit hooks via lefthook: gofumpt, goimports, golangci-lint, go vet, gitleaks
+- Pre-push hooks: tests with race detector, coverage check ≥80%
+
+## Anti-Patterns
+
+- **No `utils/`, `helpers/`, `common/` packages** — name packages by domain
+- **No raw SQL in application code** — all queries go through typed functions
+- **No `panic` in library code** — always return errors
+- **No `//nolint` without linter name and reason**
+- **No `interface{}` / `any` unless unavoidable** — use typed AST nodes from pg_query_go
+- **No global mutable state** — pass dependencies explicitly
+- **No test logic in test helpers** — helpers set up state, tests make assertions
+
+## Session Workflow
+
+1. `/clear` to start fresh
+2. Read `CLAUDE.md` for project context
+3. Check `plans/checklist.md` for current phase status
+4. Read the relevant phase plan from `plans/phases/`
+5. Implement in small chunks, test after each
+6. Run `make audit` before committing
+7. Commit with conventional commit message
+8. Update `plans/checklist.md` after completing a phase step
+
 ## Key Design Decisions
 
 1. **Real PostgreSQL parser** via pg_query_go (100% accurate for valid PG SQL)
@@ -126,3 +192,4 @@ cmd/migrate/main.go → internal/cli/ → internal/{parser,migration,analyzer,pl
 - `plans/project.md` — Project overview
 - `.golangci.yml` — Linter configuration
 - `.testcoverage.yml` — Coverage thresholds
+- `.github/workflows/ci.yml` — CI pipeline
