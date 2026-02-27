@@ -34,5 +34,8 @@ secrets.*
 *.credential
 *.secret
 
+# Plans (internal implementation notes)
+plans/
+
 # Go
 vendor/
