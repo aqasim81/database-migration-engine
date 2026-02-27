@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/ahmad/migrate/internal/migration"
+	"github.com/aqasim81/database-migration-engine/internal/migration"
 )
 
 func makeMigrations(t *testing.T, versions ...string) []migration.Migration {

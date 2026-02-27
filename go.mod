@@ -1,4 +1,4 @@
-module github.com/ahmad/migrate
+module github.com/aqasim81/database-migration-engine
 
 go 1.25.0
 

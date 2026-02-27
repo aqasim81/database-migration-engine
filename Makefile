@@ -70,7 +70,7 @@ tidy: ## Tidy go.mod and go.sum
 .PHONY: fmt
 fmt: ## Format all Go files with gofumpt + goimports
 	gofumpt -l -w .
-	$(GOPATH_BIN)/goimports -local github.com/ahmad/migrate -w .
+	$(GOPATH_BIN)/goimports -local github.com/aqasim81/database-migration-engine -w .
 	@echo "$(GREEN)Formatted$(RESET)"
 
 .PHONY: fmt-check

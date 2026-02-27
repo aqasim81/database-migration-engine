@@ -8,7 +8,7 @@ pre-commit:
 
     goimports:
       glob: "*.go"
-      run: '$(go env GOPATH)/bin/goimports -local github.com/ahmad/migrate -w {staged_files}'
+      run: '$(go env GOPATH)/bin/goimports -local github.com/aqasim81/database-migration-engine -w {staged_files}'
       stage_fixed: true
 
     golangci-lint:

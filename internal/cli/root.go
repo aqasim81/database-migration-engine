@@ -6,7 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/ahmad/migrate/internal/config"
+	"github.com/aqasim81/database-migration-engine/internal/config"
 )
 
 const version = "0.1.0"

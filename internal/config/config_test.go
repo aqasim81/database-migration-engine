@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ahmad/migrate/internal/config"
+	"github.com/aqasim81/database-migration-engine/internal/config"
 )
 
 func TestNew_returnsDefaults(t *testing.T) {

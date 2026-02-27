@@ -13,7 +13,7 @@ formatters:
   settings:
     goimports:
       local-prefixes:
-        - github.com/ahmad/migrate
+        - github.com/aqasim81/database-migration-engine
 
 linters:
   default: standard
@@ -76,7 +76,7 @@ linters:
 
     wrapcheck:
       ignore-package-globs:
-        - github.com/ahmad/migrate/*
+        - github.com/aqasim81/database-migration-engine/*
 
     gocritic:
       enabled-tags:

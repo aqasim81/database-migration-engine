@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/ahmad/migrate/internal/config"
+	"github.com/aqasim81/database-migration-engine/internal/config"
 )
 
 func TestRedactURL(t *testing.T) {

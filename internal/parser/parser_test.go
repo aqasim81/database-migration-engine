@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ahmad/migrate/internal/parser"
+	"github.com/aqasim81/database-migration-engine/internal/parser"
 )
 
 func TestParse(t *testing.T) {
