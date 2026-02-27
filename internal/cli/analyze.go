@@ -29,8 +29,13 @@ func init() { //nolint:gochecknoinits // standard Cobra pattern for flag registr
 // errHighSeverityFindings is returned when --fail-on-high is set and high/critical findings exist.
 var errHighSeverityFindings = errors.New("high or critical severity findings detected")
 
-func runAnalyze(cmd *cobra.Command, _ []string) error {
-	migrations, err := migration.LoadFromDir(AppConfig.MigrationsDir)
+func runAnalyze(cmd *cobra.Command, args []string) error {
+	dir := AppConfig.MigrationsDir
+	if len(args) > 0 {
+		dir = args[0]
+	}
+
+	migrations, err := migration.LoadFromDir(dir)
 	if err != nil {
 		return fmt.Errorf("loading migrations: %w", err)
 	}
@@ -78,6 +83,11 @@ func printAnalysisResults(cmd *cobra.Command, results []analyzer.AnalysisResult)
 			fmt.Fprintf(out, "  [%s] %s\n", f.Severity, f.Message)
 			fmt.Fprintf(out, "    Table: %s\n", f.Table)
 			fmt.Fprintf(out, "    Rule:  %s\n", f.Rule)
+
+			if f.Statement != "" {
+				fmt.Fprintf(out, "    SQL:   %s\n", f.Statement)
+			}
+
 			fmt.Fprintf(out, "    Fix:   %s\n\n", f.Suggestion)
 		}
 

@@ -112,7 +112,7 @@ func TestAnalyzeAll_multipleMigrations_correctResultCount(t *testing.T) {
 	assert.Len(t, results, 2)
 }
 
-func TestAnalyzeAll_errorInOne_returnsError(t *testing.T) {
+func TestAnalyzeAll_errorInOne_returnsWrappedError(t *testing.T) {
 	t.Parallel()
 
 	migrations := []migration.Migration{
@@ -123,7 +123,9 @@ func TestAnalyzeAll_errorInOne_returnsError(t *testing.T) {
 	a := analyzer.New()
 
 	_, err := a.AnalyzeAll(migrations)
-	assert.Error(t, err)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "migration 002")
+	assert.Contains(t, err.Error(), "parsing migration 002")
 }
 
 func TestAnalyze_multiStatement_runsRulesOnEach(t *testing.T) {
@@ -145,6 +147,27 @@ func TestAnalyze_multiStatement_runsRulesOnEach(t *testing.T) {
 	assert.Len(t, result.Findings, 2)
 	assert.Equal(t, 0, result.Findings[0].StmtIndex)
 	assert.Equal(t, 1, result.Findings[1].StmtIndex)
+}
+
+func TestAnalyze_populatesStatementField(t *testing.T) {
+	t.Parallel()
+
+	m := &migration.Migration{
+		Version: "001",
+		Name:    "test",
+		UpSQL:   "CREATE TABLE users (id BIGSERIAL PRIMARY KEY);",
+	}
+
+	registry := analyzer.NewRegistry()
+	registry.Register(&stubRule{})
+
+	a := analyzer.New(analyzer.WithRegistry(registry))
+
+	result, err := a.Analyze(m)
+	require.NoError(t, err)
+	require.Len(t, result.Findings, 1)
+	assert.NotEmpty(t, result.Findings[0].Statement)
+	assert.Contains(t, result.Findings[0].Statement, "CREATE TABLE users")
 }
 
 func TestWithPGVersion_setsVersion(t *testing.T) {

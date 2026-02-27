@@ -117,7 +117,7 @@ test-all: test test-integration ## Run all tests (unit + integration)
 # COVERAGE
 # ─────────────────────────────────────────
 
-COVERAGE_EXCLUDE := /internal/cli/
+COVERAGE_EXCLUDE :=
 
 .PHONY: coverage
 coverage: ## Run tests and show coverage breakdown

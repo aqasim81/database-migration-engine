@@ -7,6 +7,8 @@ import (
 	"github.com/aqasim81/database-migration-engine/internal/parser"
 )
 
+const maxStmtDisplayLen = 120 // max characters for Statement field in findings
+
 // Option configures the Analyzer.
 type Option func(*Analyzer)
 
@@ -66,9 +68,15 @@ func (a *Analyzer) Analyze(m *migration.Migration) (*AnalysisResult, error) {
 			SQL:             m.UpSQL,
 		}
 
+		stmtSQL := ExtractStmtSQL(result.Stmts, i, m.UpSQL)
+
 		for _, rule := range a.registry.Rules() {
 			fs := rule.Check(stmt, ctx)
 			for j := range fs {
+				if fs[j].Statement == "" {
+					fs[j].Statement = TruncateSQL(stmtSQL, maxStmtDisplayLen)
+				}
+
 				if fs[j].Severity > maxSeverity {
 					maxSeverity = fs[j].Severity
 				}
@@ -92,7 +100,7 @@ func (a *Analyzer) AnalyzeAll(migrations []migration.Migration) ([]AnalysisResul
 	for i := range migrations {
 		r, err := a.Analyze(&migrations[i])
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("migration %s: %w", migrations[i].Version, err)
 		}
 
 		results = append(results, *r)
