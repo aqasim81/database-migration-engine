@@ -4,7 +4,7 @@
 
 Zero-downtime PostgreSQL schema migration CLI. Parses SQL with the real PG parser, detects dangerous DDL operations, suggests safe alternatives, executes with rollback capability.
 
-**Status:** Phase 2 complete — SQL parser (pg_query_go v6) + migration file loading, sorting, checksums.
+**Status:** Phase 4 complete — database connection (pgx pool), advisory locks (LockHandle), schema_migrations tracker CRUD, integration tests (testcontainers-go). Next: Phase 5 (Execution Engine).
 
 ## Stack
 
