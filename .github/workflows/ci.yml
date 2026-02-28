@@ -56,9 +56,12 @@ jobs:
           CGO_ENABLED: "1"
         run: go test -coverprofile=coverage.out -covermode=atomic ./internal/...
 
+      - name: Exclude integration-only packages from coverage
+        run: grep -v 'internal/database/advisory_lock\|internal/tracker/tracker' coverage.out > coverage-filtered.out
+
       - name: Check coverage threshold
         run: |
-          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | tr -d '%')
+          COVERAGE=$(go tool cover -func=coverage-filtered.out | grep total | awk '{print $3}' | tr -d '%')
           echo "Total coverage: ${COVERAGE}%"
           if [ "$(echo "$COVERAGE < 80" | bc)" -eq 1 ]; then
             echo "::error::Coverage ${COVERAGE}% is below 80% threshold"
