@@ -75,7 +75,7 @@ Each phase follows a structured workflow: plan → review → implement → revi
 - [x] **Test** — Run `make test` and `make test-integration` — tracker tests pass against real PostgreSQL
 - [x] **Fix** — Address any issues found during review or testing
 - [x] **Update checklist** — Mark items complete
-- [ ] **Next** — Proceed to Phase 5
+- [x] **Next** — Proceed to Phase 5
 
 ---
 
@@ -83,13 +83,13 @@ Each phase follows a structured workflow: plan → review → implement → revi
 
 > **Plan file:** [`plans/phases/phase-5-execution-engine.md`](phases/phase-5-execution-engine.md)
 
-- [ ] **Plan** — Read phase plan, understand scope and deliverables
-- [ ] **Review the plan** — Verify approach, clarify any ambiguities
-- [ ] **Implement** — Safety helpers, transaction management, executor, wire apply command, integration tests
-- [ ] **Review the implementation** — Code review, check against plan requirements
-- [ ] **Test** — Run `make test` and `make test-integration` — full apply lifecycle passes
-- [ ] **Fix** — Address any issues found during review or testing
-- [ ] **Update checklist** — Mark items complete
+- [x] **Plan** — Read phase plan, understand scope and deliverables
+- [x] **Review the plan** — Verify approach, clarify any ambiguities
+- [x] **Implement** — Safety helpers, transaction management, executor, wire apply command, integration tests
+- [x] **Review the implementation** — Code review, check against plan requirements
+- [x] **Test** — Run `make test` and `make test-integration` — full apply lifecycle passes
+- [x] **Fix** — Address any issues found during review or testing
+- [x] **Update checklist** — Mark items complete
 - [ ] **Next** — Proceed to Phase 6
 
 ---

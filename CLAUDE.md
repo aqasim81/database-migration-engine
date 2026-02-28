@@ -4,7 +4,7 @@
 
 Zero-downtime PostgreSQL schema migration CLI. Parses SQL with the real PG parser, detects dangerous DDL operations, suggests safe alternatives, executes with rollback capability.
 
-**Status:** Phase 4 complete — database connection (pgx pool), advisory locks (LockHandle), schema_migrations tracker CRUD, integration tests (testcontainers-go). Next: Phase 5 (Execution Engine).
+**Status:** Phase 5 complete — execution engine (safety helpers, transaction management, concurrent index detection, Executor with Apply flow, progress callbacks, apply CLI command), unit + integration tests. Next: Phase 6 (Rollback Support).
 
 ## Stack
 
@@ -34,7 +34,7 @@ cmd/migrate/main.go → internal/cli/ → internal/{parser,migration,analyzer,pl
 - `internal/migration/` — Migration type, file loader, version sorter, checksums
 - `internal/analyzer/` — Danger detection engine. Rule interface + implementations in `rules/` (one file per rule)
 - `internal/planner/` — Execution plan builder, impact estimation (future)
-- `internal/executor/` — Transaction mgmt, lock/statement timeouts, advisory locks (future)
+- `internal/executor/` — Migration executor: Apply flow, transaction mgmt, lock/statement timeouts, concurrent index detection, progress callbacks
 - `internal/tracker/` — schema_migrations CRUD (EnsureTable, IsApplied, GetApplied, RecordApplied, RecordRolledBack, GetChecksum)
 - `internal/database/` — pgx pool wrapper, advisory lock helpers (LockHandle)
 
