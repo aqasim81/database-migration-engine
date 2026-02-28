@@ -90,7 +90,7 @@ Each phase follows a structured workflow: plan → review → implement → revi
 - [x] **Test** — Run `make test` and `make test-integration` — full apply lifecycle passes
 - [x] **Fix** — Address any issues found during review or testing
 - [x] **Update checklist** — Mark items complete
-- [ ] **Next** — Proceed to Phase 6
+- [x] **Next** — Proceed to Phase 6
 
 ---
 
