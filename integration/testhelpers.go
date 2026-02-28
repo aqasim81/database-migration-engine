@@ -20,9 +20,9 @@ const (
 	testPassword  = "migrate"
 )
 
-// SetupPostgres starts a PostgreSQL 16 container and returns a connection pool.
-// The container and pool are automatically cleaned up when the test completes.
-func SetupPostgres(t *testing.T) *pgxpool.Pool {
+// SetupPostgresDSN starts a PostgreSQL 16 container and returns a connection DSN.
+// The container is automatically terminated when the test completes.
+func SetupPostgresDSN(t *testing.T) string {
 	t.Helper()
 
 	ctx := context.Background()
@@ -56,16 +56,24 @@ func SetupPostgres(t *testing.T) *pgxpool.Pool {
 	port, err := container.MappedPort(ctx, "5432/tcp")
 	require.NoError(t, err)
 
-	dsn := "postgres://" + testUser + ":" + testPassword + "@" + host + ":" + port.Port() + "/" + testDB + "?sslmode=disable"
+	return "postgres://" + testUser + ":" + testPassword + "@" + host + ":" + port.Port() + "/" + testDB + "?sslmode=disable"
+}
 
-	pool, err := pgxpool.New(ctx, dsn)
+// SetupPostgres starts a PostgreSQL 16 container and returns a connection pool.
+// The container and pool are automatically cleaned up when the test completes.
+func SetupPostgres(t *testing.T) *pgxpool.Pool {
+	t.Helper()
+
+	dsn := SetupPostgresDSN(t)
+
+	pool, err := pgxpool.New(context.Background(), dsn)
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
 		pool.Close()
 	})
 
-	require.NoError(t, pool.Ping(ctx))
+	require.NoError(t, pool.Ping(context.Background()))
 
 	return pool
 }

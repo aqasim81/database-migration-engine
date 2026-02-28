@@ -35,8 +35,8 @@ cmd/migrate/main.go → internal/cli/ → internal/{parser,migration,analyzer,pl
 - `internal/analyzer/` — Danger detection engine. Rule interface + implementations in `rules/` (one file per rule)
 - `internal/planner/` — Execution plan builder, impact estimation (future)
 - `internal/executor/` — Transaction mgmt, lock/statement timeouts, advisory locks (future)
-- `internal/tracker/` — schema_migrations CRUD (future)
-- `internal/database/` — pgx pool, advisory lock helpers (future)
+- `internal/tracker/` — schema_migrations CRUD (EnsureTable, IsApplied, GetApplied, RecordApplied, RecordRolledBack, GetChecksum)
+- `internal/database/` — pgx pool wrapper, advisory lock helpers (LockHandle)
 
 ## Key Design Decisions
 

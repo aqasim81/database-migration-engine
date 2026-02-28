@@ -15,12 +15,19 @@ import (
 func TestNewPool_validConnection_succeeds(t *testing.T) {
 	t.Parallel()
 
-	pool := SetupPostgres(t)
+	dsn := SetupPostgresDSN(t)
 	ctx := context.Background()
+
+	pool, err := database.NewPool(ctx, dsn)
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		pool.Close()
+	})
 
 	var result int
 
-	err := pool.QueryRow(ctx, "SELECT 1").Scan(&result)
+	err = pool.QueryRow(ctx, "SELECT 1").Scan(&result)
 	require.NoError(t, err)
 	assert.Equal(t, 1, result)
 }
