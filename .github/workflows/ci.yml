@@ -65,6 +65,21 @@ jobs:
             exit 1
           fi
 
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Run integration tests
+        env:
+          CGO_ENABLED: "1"
+        run: go test -v -race -count=1 -tags=integration ./integration/...
+
   vet:
     name: Vet
     runs-on: ubuntu-latest

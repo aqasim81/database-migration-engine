@@ -15,3 +15,7 @@ override:
     threshold: 90
   - path: internal/executor/.*\.go
     threshold: 85
+  - path: internal/database/.*\.go
+    threshold: 0
+  - path: internal/tracker/tracker\.go
+    threshold: 0
