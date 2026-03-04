@@ -4,7 +4,7 @@
 
 Zero-downtime PostgreSQL schema migration CLI. Parses SQL with the real PG parser, detects dangerous DDL operations, suggests safe alternatives, executes with rollback capability.
 
-**Status:** Phase 5 complete — execution engine (safety helpers, transaction management, concurrent index detection, Executor with Apply flow, progress callbacks, apply CLI command), unit + integration tests. Next: Phase 6 (Rollback Support).
+**Status:** Phase 6 complete — rollback support (Rollback by steps, RollbackToVersion by target, down SQL execution with concurrent operation detection, rollback CLI command with --steps/--target flags, progress callbacks), unit + integration tests. Next: Phase 7 (Planner + Impact Estimation).
 
 ## Stack
 

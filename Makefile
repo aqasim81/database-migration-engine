@@ -118,7 +118,7 @@ test-all: test test-integration ## Run all tests (unit + integration)
 # ─────────────────────────────────────────
 
 # Exclude packages tested only via integration tests (see .testcoverage.yml overrides).
-COVERAGE_EXCLUDE := internal/database/advisory_lock\|internal/tracker/tracker
+COVERAGE_EXCLUDE := internal/database/advisory_lock\|internal/tracker/tracker\|internal/executor/transaction\|internal/executor/safety
 
 .PHONY: coverage
 coverage: ## Run tests and show coverage breakdown

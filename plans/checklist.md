@@ -98,14 +98,14 @@ Each phase follows a structured workflow: plan → review → implement → revi
 
 > **Plan file:** [`plans/phases/phase-6-rollback-support.md`](phases/phase-6-rollback-support.md)
 
-- [ ] **Plan** — Read phase plan, understand scope and deliverables
-- [ ] **Review the plan** — Verify approach, clarify any ambiguities
-- [ ] **Implement** — Down file loading, rollback in executor, wire rollback command, integration tests
-- [ ] **Review the implementation** — Code review, check against plan requirements
-- [ ] **Test** — Run `make test` and `make test-integration` — rollback lifecycle passes
-- [ ] **Fix** — Address any issues found during review or testing
-- [ ] **Update checklist** — Mark items complete
-- [ ] **Next** — Proceed to Phase 7
+- [x] **Plan** — Read phase plan, understand scope and deliverables
+- [x] **Review the plan** — Verify approach, clarify any ambiguities
+- [x] **Implement** — Down file loading, rollback in executor, wire rollback command, integration tests
+- [x] **Review the implementation** — Code review, check against plan requirements
+- [x] **Test** — Run `make test` and `make test-integration` — rollback lifecycle passes
+- [x] **Fix** — Address any issues found during review or testing
+- [x] **Update checklist** — Mark items complete
+- [x] **Next** — Proceed to Phase 7
 
 ---
 
