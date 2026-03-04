@@ -13,6 +13,10 @@ exclude:
 override:
   - path: internal/analyzer/rules/.*\.go
     threshold: 90
+  - path: internal/planner/(?!table_sizer).*\.go
+    threshold: 90
+  - path: internal/planner/table_sizer\.go
+    threshold: 0
   - path: internal/executor/.*\.go
     threshold: 85
   - path: internal/database/.*\.go

@@ -11,18 +11,6 @@ import (
 	"github.com/aqasim81/database-migration-engine/internal/config"
 )
 
-func TestRunPlan_printsNotImplemented(t *testing.T) {
-	t.Parallel()
-
-	buf := new(bytes.Buffer)
-	cmd := &cobra.Command{}
-	cmd.SetOut(buf)
-
-	err := runPlan(cmd, nil)
-	require.NoError(t, err)
-	assert.Contains(t, buf.String(), "plan: not yet implemented")
-}
-
 func TestRunApply_noDatabaseURL_returnsError(t *testing.T) { //nolint:paralleltest // writes global AppConfig
 	AppConfig = &config.Config{MigrationsDir: "./testdata/migrations"}
 
