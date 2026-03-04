@@ -1,0 +1,46 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: migrate
+    main: ./cmd/migrate
+    binary: migrate
+    env:
+      - CGO_ENABLED=1
+    ldflags:
+      - -s -w
+    goos:
+      - linux
+    goarch:
+      - amd64
+    # NOTE: pg_query_go requires CGO, which makes cross-compilation non-trivial.
+    # This config builds for linux/amd64 (the CI runner's native platform).
+    # To add darwin/arm64, use a separate CI job on macos-latest or a
+    # Docker-based cross-compiler like goreleaser-cross.
+
+archives:
+  - format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+
+release:
+  github:
+    owner: aqasim81
+    name: database-migration-engine
+  draft: false
+  prerelease: auto
