@@ -15,15 +15,12 @@ import (
 	"github.com/aqasim81/database-migration-engine/internal/migration"
 )
 
-// setupTestConfig sets AppConfig for the duration of the test and restores it on cleanup.
-func setupTestConfig(t *testing.T, migrationsDir string) {
+// setTestAppConfig sets AppConfig for the duration of the test and restores it on cleanup.
+func setTestAppConfig(t *testing.T, cfg *config.Config) {
 	t.Helper()
 
 	old := AppConfig
-	AppConfig = &config.Config{
-		MigrationsDir:   migrationsDir,
-		TargetPGVersion: config.DefaultTargetPGVersion,
-	}
+	AppConfig = cfg
 
 	t.Cleanup(func() { AppConfig = old })
 }
@@ -181,7 +178,10 @@ func TestPrintAnalysisText_noStatement_skipsSQL(t *testing.T) {
 
 func TestRunAnalyze_withTestdata_producesOutput(t *testing.T) { // not parallel: mutates global AppConfig
 	dir := filepath.Join("testdata", "migrations")
-	setupTestConfig(t, dir)
+	setTestAppConfig(t, &config.Config{
+		MigrationsDir:   dir,
+		TargetPGVersion: config.DefaultTargetPGVersion,
+	})
 
 	cmd, buf := newAnalyzeCmd(t)
 	cmd.SetArgs([]string{dir})
@@ -193,7 +193,10 @@ func TestRunAnalyze_withTestdata_producesOutput(t *testing.T) { // not parallel:
 
 func TestRunAnalyze_emptyDir_printsNoMigrations(t *testing.T) { // not parallel: mutates global AppConfig
 	dir := t.TempDir()
-	setupTestConfig(t, dir)
+	setTestAppConfig(t, &config.Config{
+		MigrationsDir:   dir,
+		TargetPGVersion: config.DefaultTargetPGVersion,
+	})
 
 	cmd, buf := newAnalyzeCmd(t)
 	cmd.SetArgs([]string{dir})
@@ -205,7 +208,10 @@ func TestRunAnalyze_emptyDir_printsNoMigrations(t *testing.T) { // not parallel:
 
 func TestRunAnalyze_invalidDir_returnsError(t *testing.T) { // not parallel: mutates global AppConfig
 	dir := "/nonexistent/path/to/migrations"
-	setupTestConfig(t, dir)
+	setTestAppConfig(t, &config.Config{
+		MigrationsDir:   dir,
+		TargetPGVersion: config.DefaultTargetPGVersion,
+	})
 
 	cmd, _ := newAnalyzeCmd(t)
 	cmd.SetArgs([]string{dir})
@@ -217,7 +223,10 @@ func TestRunAnalyze_invalidDir_returnsError(t *testing.T) { // not parallel: mut
 
 func TestRunAnalyze_failOnHigh_returnsError(t *testing.T) { // not parallel: mutates global AppConfig
 	dir := filepath.Join("testdata", "migrations")
-	setupTestConfig(t, dir)
+	setTestAppConfig(t, &config.Config{
+		MigrationsDir:   dir,
+		TargetPGVersion: config.DefaultTargetPGVersion,
+	})
 
 	cmd, _ := newAnalyzeCmd(t)
 	cmd.SetArgs([]string{"--fail-on-high", dir})
@@ -229,7 +238,10 @@ func TestRunAnalyze_failOnHigh_returnsError(t *testing.T) { // not parallel: mut
 
 func TestRunAnalyze_usesConfigDir_whenNoArgs(t *testing.T) { // not parallel: mutates global AppConfig
 	dir := filepath.Join("testdata", "migrations")
-	setupTestConfig(t, dir)
+	setTestAppConfig(t, &config.Config{
+		MigrationsDir:   dir,
+		TargetPGVersion: config.DefaultTargetPGVersion,
+	})
 
 	cmd, buf := newAnalyzeCmd(t)
 
@@ -345,7 +357,10 @@ func TestPrintAnalysisGitHub_noFindings(t *testing.T) {
 
 func TestRunAnalyze_jsonFormat(t *testing.T) { // not parallel: mutates global AppConfig
 	dir := filepath.Join("testdata", "migrations")
-	setupTestConfig(t, dir)
+	setTestAppConfig(t, &config.Config{
+		MigrationsDir:   dir,
+		TargetPGVersion: config.DefaultTargetPGVersion,
+	})
 
 	cmd, buf := newAnalyzeCmd(t)
 	cmd.SetArgs([]string{"--format", "json", dir})
@@ -361,7 +376,10 @@ func TestRunAnalyze_jsonFormat(t *testing.T) { // not parallel: mutates global A
 
 func TestRunAnalyze_githubActionsFormat(t *testing.T) { // not parallel: mutates global AppConfig
 	dir := filepath.Join("testdata", "migrations")
-	setupTestConfig(t, dir)
+	setTestAppConfig(t, &config.Config{
+		MigrationsDir:   dir,
+		TargetPGVersion: config.DefaultTargetPGVersion,
+	})
 
 	cmd, buf := newAnalyzeCmd(t)
 	cmd.SetArgs([]string{"--format", "github-actions", dir})

@@ -58,10 +58,7 @@ func TestColorStatus_allStatuses(t *testing.T) {
 }
 
 func TestGetFormat_fromFlag(t *testing.T) { //nolint:paralleltest // writes global AppConfig
-	old := AppConfig
-	AppConfig = &config.Config{Format: "text"}
-
-	t.Cleanup(func() { AppConfig = old })
+	setTestAppConfig(t, &config.Config{Format: "text"})
 
 	cmd := &cobra.Command{}
 	cmd.Flags().String("format", "text", "")
@@ -71,10 +68,7 @@ func TestGetFormat_fromFlag(t *testing.T) { //nolint:paralleltest // writes glob
 }
 
 func TestGetFormat_fallsBackToConfig(t *testing.T) { //nolint:paralleltest // writes global AppConfig
-	old := AppConfig
-	AppConfig = &config.Config{Format: "json"}
-
-	t.Cleanup(func() { AppConfig = old })
+	setTestAppConfig(t, &config.Config{Format: "json"})
 
 	cmd := &cobra.Command{}
 
@@ -82,10 +76,7 @@ func TestGetFormat_fallsBackToConfig(t *testing.T) { //nolint:paralleltest // wr
 }
 
 func TestGetFormat_defaultText(t *testing.T) { //nolint:paralleltest // writes global AppConfig
-	old := AppConfig
-	AppConfig = &config.Config{Format: "text"}
-
-	t.Cleanup(func() { AppConfig = old })
+	setTestAppConfig(t, &config.Config{Format: "text"})
 
 	cmd := &cobra.Command{}
 	cmd.Flags().String("format", "", "")

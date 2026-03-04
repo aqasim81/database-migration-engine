@@ -170,9 +170,7 @@ func TestFormatDurationMs(t *testing.T) {
 }
 
 func TestRunStatus_noDatabaseURL_returnsError(t *testing.T) { //nolint:paralleltest // writes global AppConfig
-	old := AppConfig
-	AppConfig = &config.Config{MigrationsDir: "./testdata/migrations"}
-	t.Cleanup(func() { AppConfig = old })
+	setTestAppConfig(t, &config.Config{MigrationsDir: "./testdata/migrations"})
 
 	buf := new(bytes.Buffer)
 	cmd := &cobra.Command{}

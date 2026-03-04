@@ -12,9 +12,7 @@ import (
 )
 
 func TestRunApply_noDatabaseURL_returnsError(t *testing.T) { //nolint:paralleltest // writes global AppConfig
-	old := AppConfig
-	AppConfig = &config.Config{MigrationsDir: "./testdata/migrations"}
-	t.Cleanup(func() { AppConfig = old })
+	setTestAppConfig(t, &config.Config{MigrationsDir: "./testdata/migrations"})
 
 	buf := new(bytes.Buffer)
 	cmd := &cobra.Command{}
@@ -26,9 +24,7 @@ func TestRunApply_noDatabaseURL_returnsError(t *testing.T) { //nolint:parallelte
 }
 
 func TestRunRollback_noDatabaseURL_returnsError(t *testing.T) { //nolint:paralleltest // writes global AppConfig
-	old := AppConfig
-	AppConfig = &config.Config{MigrationsDir: "./testdata/migrations"}
-	t.Cleanup(func() { AppConfig = old })
+	setTestAppConfig(t, &config.Config{MigrationsDir: "./testdata/migrations"})
 
 	buf := new(bytes.Buffer)
 	cmd := &cobra.Command{}
@@ -40,12 +36,10 @@ func TestRunRollback_noDatabaseURL_returnsError(t *testing.T) { //nolint:paralle
 }
 
 func TestRunRollback_noMigrations_printsMessage(t *testing.T) { //nolint:paralleltest // writes global AppConfig
-	old := AppConfig
-	AppConfig = &config.Config{
+	setTestAppConfig(t, &config.Config{
 		DatabaseURL:   "postgres://test:test@localhost/test",
 		MigrationsDir: t.TempDir(),
-	}
-	t.Cleanup(func() { AppConfig = old })
+	})
 
 	buf := new(bytes.Buffer)
 	cmd := &cobra.Command{}

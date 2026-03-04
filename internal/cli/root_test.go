@@ -57,8 +57,7 @@ func TestMergeFlags_unchangedFlags_preserveConfig(t *testing.T) {
 }
 
 func TestLoadConfig_missingFile_usesDefaults(t *testing.T) { // not parallel: mutates global AppConfig
-	old := AppConfig
-	t.Cleanup(func() { AppConfig = old })
+	setTestAppConfig(t, AppConfig) // save/restore; loadConfig will overwrite
 
 	cmd := &cobra.Command{}
 	cmd.Flags().String("config", "nonexistent.yml", "")
@@ -73,8 +72,7 @@ func TestLoadConfig_missingFile_usesDefaults(t *testing.T) { // not parallel: mu
 }
 
 func TestLoadConfig_validFile_loadsValues(t *testing.T) { // not parallel: mutates global AppConfig
-	old := AppConfig
-	t.Cleanup(func() { AppConfig = old })
+	setTestAppConfig(t, AppConfig) // save/restore; loadConfig will overwrite
 
 	dir := t.TempDir()
 	cfgPath := filepath.Join(dir, "test-config.yml")
@@ -97,8 +95,7 @@ func TestLoadConfig_validFile_loadsValues(t *testing.T) { // not parallel: mutat
 }
 
 func TestLoadConfig_invalidFile_returnsError(t *testing.T) { // not parallel: mutates global AppConfig
-	old := AppConfig
-	t.Cleanup(func() { AppConfig = old })
+	setTestAppConfig(t, AppConfig) // save/restore; loadConfig will overwrite
 
 	dir := t.TempDir()
 	cfgPath := filepath.Join(dir, "bad-config.yml")
