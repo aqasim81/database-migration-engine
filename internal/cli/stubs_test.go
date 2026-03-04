@@ -47,8 +47,23 @@ func TestRunStatus_printsNotImplemented(t *testing.T) {
 	assert.Contains(t, buf.String(), "status: not yet implemented")
 }
 
-func TestRunRollback_printsNotImplemented(t *testing.T) {
-	t.Parallel()
+func TestRunRollback_noDatabaseURL_returnsError(t *testing.T) { //nolint:paralleltest // writes global AppConfig
+	AppConfig = &config.Config{MigrationsDir: "./testdata/migrations"}
+
+	buf := new(bytes.Buffer)
+	cmd := &cobra.Command{}
+	cmd.SetOut(buf)
+
+	err := runRollback(cmd, nil)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, errDatabaseURLRequired)
+}
+
+func TestRunRollback_noMigrations_printsMessage(t *testing.T) { //nolint:paralleltest // writes global AppConfig
+	AppConfig = &config.Config{
+		DatabaseURL:   "postgres://test:test@localhost/test",
+		MigrationsDir: t.TempDir(),
+	}
 
 	buf := new(bytes.Buffer)
 	cmd := &cobra.Command{}
@@ -56,5 +71,5 @@ func TestRunRollback_printsNotImplemented(t *testing.T) {
 
 	err := runRollback(cmd, nil)
 	require.NoError(t, err)
-	assert.Contains(t, buf.String(), "rollback: not yet implemented")
+	assert.Contains(t, buf.String(), "No migration files found")
 }
