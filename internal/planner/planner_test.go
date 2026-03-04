@@ -58,7 +58,7 @@ func TestBuildPlan_allPending(t *testing.T) {
 	migrations := testMigrations()
 	results := testResults(migrations)
 
-	plan, err := planner.BuildPlan(&planner.BuildPlanParams{
+	plan, err := planner.BuildPlan(context.Background(), &planner.BuildPlanParams{
 		Migrations: migrations,
 		Results:    results,
 		Applied:    map[string]bool{},
@@ -79,7 +79,7 @@ func TestBuildPlan_mixedStatus(t *testing.T) {
 	migrations := testMigrations()
 	results := testResults(migrations)
 
-	plan, err := planner.BuildPlan(&planner.BuildPlanParams{
+	plan, err := planner.BuildPlan(context.Background(), &planner.BuildPlanParams{
 		Migrations: migrations,
 		Results:    results,
 		Applied:    map[string]bool{"001": true},
@@ -102,7 +102,7 @@ func TestBuildPlan_noFindings(t *testing.T) {
 		{Migration: &migrations[0], Findings: nil, MaxSeverity: analyzer.Safe},
 	}
 
-	plan, err := planner.BuildPlan(&planner.BuildPlanParams{
+	plan, err := planner.BuildPlan(context.Background(), &planner.BuildPlanParams{
 		Migrations: migrations,
 		Results:    results,
 		Applied:    map[string]bool{},
@@ -120,7 +120,7 @@ func TestBuildPlan_highRiskCounting(t *testing.T) {
 	migrations := testMigrations()
 	results := testResults(migrations)
 
-	plan, err := planner.BuildPlan(&planner.BuildPlanParams{
+	plan, err := planner.BuildPlan(context.Background(), &planner.BuildPlanParams{
 		Migrations: migrations,
 		Results:    results,
 		Applied:    map[string]bool{},
@@ -152,7 +152,7 @@ func TestBuildPlan_criticalRiskCounting(t *testing.T) {
 		},
 	}
 
-	plan, err := planner.BuildPlan(&planner.BuildPlanParams{
+	plan, err := planner.BuildPlan(context.Background(), &planner.BuildPlanParams{
 		Migrations: migrations,
 		Results:    results,
 		Applied:    map[string]bool{},
@@ -173,7 +173,7 @@ func TestBuildPlan_concurrentMigration_runInTxFalse(t *testing.T) {
 		{Migration: &migrations[0], MaxSeverity: analyzer.Safe},
 	}
 
-	plan, err := planner.BuildPlan(&planner.BuildPlanParams{
+	plan, err := planner.BuildPlan(context.Background(), &planner.BuildPlanParams{
 		Migrations: migrations,
 		Results:    results,
 		Applied:    map[string]bool{},
@@ -193,7 +193,7 @@ func TestBuildPlan_regularMigration_runInTxTrue(t *testing.T) {
 		{Migration: &migrations[0], MaxSeverity: analyzer.Safe},
 	}
 
-	plan, err := planner.BuildPlan(&planner.BuildPlanParams{
+	plan, err := planner.BuildPlan(context.Background(), &planner.BuildPlanParams{
 		Migrations: migrations,
 		Results:    results,
 		Applied:    map[string]bool{},
@@ -210,12 +210,11 @@ func TestBuildPlan_withTableSizer(t *testing.T) {
 	results := testResults(migrations)
 	sizer := &mockTableSizer{sizes: map[string]int64{"users": sizeLarge}}
 
-	plan, err := planner.BuildPlan(&planner.BuildPlanParams{
+	plan, err := planner.BuildPlan(context.Background(), &planner.BuildPlanParams{
 		Migrations: migrations,
 		Results:    results,
 		Applied:    map[string]bool{},
 		Sizer:      sizer,
-		Ctx:        context.Background(),
 	})
 
 	require.NoError(t, err)
@@ -230,7 +229,7 @@ func TestBuildPlan_nilSizer_usesUnknownSize(t *testing.T) {
 	migrations := testMigrations()
 	results := testResults(migrations)
 
-	plan, err := planner.BuildPlan(&planner.BuildPlanParams{
+	plan, err := planner.BuildPlan(context.Background(), &planner.BuildPlanParams{
 		Migrations: migrations,
 		Results:    results,
 		Applied:    map[string]bool{},
@@ -244,7 +243,7 @@ func TestBuildPlan_nilSizer_usesUnknownSize(t *testing.T) {
 func TestBuildPlan_emptyMigrations(t *testing.T) {
 	t.Parallel()
 
-	plan, err := planner.BuildPlan(&planner.BuildPlanParams{
+	plan, err := planner.BuildPlan(context.Background(), &planner.BuildPlanParams{
 		Migrations: nil,
 		Results:    nil,
 		Applied:    map[string]bool{},
@@ -261,7 +260,7 @@ func TestPendingOnly_filtersApplied(t *testing.T) {
 	migrations := testMigrations()
 	results := testResults(migrations)
 
-	plan, err := planner.BuildPlan(&planner.BuildPlanParams{
+	plan, err := planner.BuildPlan(context.Background(), &planner.BuildPlanParams{
 		Migrations: migrations,
 		Results:    results,
 		Applied:    map[string]bool{"001": true},
@@ -295,7 +294,7 @@ func TestPendingOnly_preservesRiskCounts(t *testing.T) {
 	migrations := testMigrations()
 	results := testResults(migrations)
 
-	plan, err := planner.BuildPlan(&planner.BuildPlanParams{
+	plan, err := planner.BuildPlan(context.Background(), &planner.BuildPlanParams{
 		Migrations: migrations,
 		Results:    results,
 		Applied:    map[string]bool{"001": true},
@@ -339,7 +338,7 @@ func TestBuildPlan_dropIndexConcurrently_runInTxFalse(t *testing.T) {
 		{Migration: &migrations[0], MaxSeverity: analyzer.Safe},
 	}
 
-	plan, err := planner.BuildPlan(&planner.BuildPlanParams{
+	plan, err := planner.BuildPlan(context.Background(), &planner.BuildPlanParams{
 		Migrations: migrations,
 		Results:    results,
 		Applied:    map[string]bool{},
@@ -359,7 +358,7 @@ func TestBuildPlan_noConcurrentlyKeyword_skipsParser(t *testing.T) {
 		{Migration: &migrations[0], MaxSeverity: analyzer.Safe},
 	}
 
-	plan, err := planner.BuildPlan(&planner.BuildPlanParams{
+	plan, err := planner.BuildPlan(context.Background(), &planner.BuildPlanParams{
 		Migrations: migrations,
 		Results:    results,
 		Applied:    map[string]bool{},
@@ -376,12 +375,11 @@ func TestBuildPlan_sizerError_fallsBackToUnknown(t *testing.T) {
 	results := testResults(migrations)
 	sizer := &errorTableSizer{}
 
-	plan, err := planner.BuildPlan(&planner.BuildPlanParams{
+	plan, err := planner.BuildPlan(context.Background(), &planner.BuildPlanParams{
 		Migrations: migrations,
 		Results:    results,
 		Applied:    map[string]bool{},
 		Sizer:      sizer,
-		Ctx:        context.Background(),
 	})
 
 	require.NoError(t, err)
@@ -413,12 +411,11 @@ func TestBuildPlan_emptyTableName_usesUnknownSize(t *testing.T) {
 
 	sizer := &mockTableSizer{sizes: map[string]int64{"users": 100}}
 
-	plan, err := planner.BuildPlan(&planner.BuildPlanParams{
+	plan, err := planner.BuildPlan(context.Background(), &planner.BuildPlanParams{
 		Migrations: migrations,
 		Results:    results,
 		Applied:    map[string]bool{},
 		Sizer:      sizer,
-		Ctx:        context.Background(),
 	})
 
 	require.NoError(t, err)

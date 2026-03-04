@@ -39,7 +39,7 @@ func EstimateImpact(finding *analyzer.Finding, tableSize int64) Impact {
 	}
 
 	return Impact{
-		EstimatedLockDuration: estimateDuration(desc, tableSize),
+		EstimatedLockDuration: desc.durationFn(tableSize),
 		LockType:              lockType,
 		AffectedTable:         finding.Table,
 		RequiresFullRewrite:   desc.requiresFullRewrite,
@@ -61,12 +61,12 @@ type ruleDescriptor struct {
 var ruleDescriptors = map[string]ruleDescriptor{
 	"create-index-not-concurrent": {
 		defaultLockType: "SHARE",
-		durationFn:      estimateBySizeIndex,
+		durationFn:      estimateBySizeHeavy,
 	},
 	"add-column-volatile-default": {
 		defaultLockType:     "ACCESS EXCLUSIVE",
 		requiresFullRewrite: true,
-		durationFn:          estimateBySizeRewrite,
+		durationFn:          estimateBySizeHeavy,
 	},
 	"add-constraint-without-not-valid": {
 		defaultLockType:  "ACCESS EXCLUSIVE",
@@ -90,7 +90,7 @@ var ruleDescriptors = map[string]ruleDescriptor{
 	"vacuum-full": {
 		defaultLockType:     "ACCESS EXCLUSIVE",
 		requiresFullRewrite: true,
-		durationFn:          estimateBySizeRewrite,
+		durationFn:          estimateBySizeHeavy,
 	},
 	"lock-table": {
 		defaultLockType: "EXPLICIT",
@@ -114,12 +114,9 @@ func lookupRuleDescriptor(ruleID string) ruleDescriptor {
 	return defaultDescriptor
 }
 
-func estimateDuration(desc ruleDescriptor, tableSize int64) string {
-	return desc.durationFn(tableSize)
-}
-
-// estimateBySizeIndex estimates duration for index creation (SHARE lock).
-func estimateBySizeIndex(tableSize int64) string {
+// estimateBySizeHeavy estimates duration for heavy operations (index creation,
+// full table rewrites like ADD COLUMN with volatile default, VACUUM FULL).
+func estimateBySizeHeavy(tableSize int64) string {
 	switch {
 	case tableSize == sizeUnknown:
 		return Duration10sTo5min
@@ -132,21 +129,9 @@ func estimateBySizeIndex(tableSize int64) string {
 	}
 }
 
-// estimateBySizeRewrite estimates duration for full table rewrite operations.
-func estimateBySizeRewrite(tableSize int64) string {
-	switch {
-	case tableSize == sizeUnknown:
-		return Duration10sTo5min
-	case tableSize < size100MB:
-		return Duration1to10s
-	case tableSize < size1GB:
-		return Duration10sTo5min
-	default:
-		return DurationOver5min
-	}
-}
-
-// estimateBySizeScan estimates duration for full table scan operations.
+// estimateBySizeScan estimates duration for full table scan operations
+// (ADD CONSTRAINT validation, SET NOT NULL checks). Scans are typically
+// faster than rewrites.
 func estimateBySizeScan(tableSize int64) string {
 	switch {
 	case tableSize == sizeUnknown:

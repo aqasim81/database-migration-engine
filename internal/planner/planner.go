@@ -58,24 +58,19 @@ type BuildPlanParams struct {
 	Results    []analyzer.AnalysisResult
 	Applied    map[string]bool // version -> true if applied
 	Sizer      TableSizer      // nil if no DB connection
-	Ctx        context.Context // nil uses context.Background()
 }
 
 // BuildPlan creates an execution plan from migrations, analysis results,
 // and applied status.
-func BuildPlan(params *BuildPlanParams) (*Plan, error) {
-	ctx := params.Ctx
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
+func BuildPlan(ctx context.Context, params *BuildPlanParams) (*Plan, error) {
 	resultMap := buildResultMap(params.Results)
+	sizeCache := make(map[string]int64)
 	plan := &Plan{}
 
 	for i := range params.Migrations {
 		m := &params.Migrations[i]
 
-		step, err := buildStep(ctx, m, resultMap[m.Version], params.Applied, params.Sizer)
+		step, err := buildStep(ctx, m, resultMap[m.Version], params.Applied, params.Sizer, sizeCache)
 		if err != nil {
 			return nil, fmt.Errorf("building plan step for %s: %w", m.Version, err)
 		}
@@ -138,6 +133,7 @@ func buildStep(
 	result *analyzer.AnalysisResult,
 	applied map[string]bool,
 	sizer TableSizer,
+	sizeCache map[string]int64,
 ) (*MigrationStep, error) {
 	step := &MigrationStep{
 		Migration: m,
@@ -151,7 +147,7 @@ func buildStep(
 
 	if result != nil {
 		step.Findings = result.Findings
-		step.Impacts = buildImpacts(ctx, result.Findings, sizer)
+		step.Impacts = buildImpacts(ctx, result.Findings, sizer, sizeCache)
 	}
 
 	concurrent, err := hasConcurrentOp(m.UpSQL)
@@ -166,11 +162,24 @@ func buildStep(
 	return step, nil
 }
 
-func buildImpacts(ctx context.Context, findings []analyzer.Finding, sizer TableSizer) []Impact {
+func buildImpacts(
+	ctx context.Context,
+	findings []analyzer.Finding,
+	sizer TableSizer,
+	sizeCache map[string]int64,
+) []Impact {
 	impacts := make([]Impact, len(findings))
+
 	for i := range findings {
-		tableSize := lookupTableSize(ctx, sizer, findings[i].Table)
-		impacts[i] = EstimateImpact(&findings[i], tableSize)
+		table := findings[i].Table
+
+		size, cached := sizeCache[table]
+		if !cached {
+			size = lookupTableSize(ctx, sizer, table)
+			sizeCache[table] = size
+		}
+
+		impacts[i] = EstimateImpact(&findings[i], size)
 	}
 
 	return impacts

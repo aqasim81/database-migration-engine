@@ -58,12 +58,11 @@ func runPlan(cmd *cobra.Command, _ []string) error {
 		defer cleanup()
 	}
 
-	plan, err := planner.BuildPlan(&planner.BuildPlanParams{
+	plan, err := planner.BuildPlan(ctx, &planner.BuildPlanParams{
 		Migrations: sorted,
 		Results:    results,
 		Applied:    applied,
 		Sizer:      sizer,
-		Ctx:        ctx,
 	})
 	if err != nil {
 		return fmt.Errorf("building plan: %w", err)
@@ -146,7 +145,7 @@ func printPlan(out io.Writer, plan *planner.Plan) {
 		fmt.Fprintf(out, "%-4d %-10s %-22s %-10s %-10s %s\n",
 			i+1,
 			step.Migration.Version,
-			truncateName(step.Migration.Name, 22), //nolint:mnd // column width
+			analyzer.TruncateSQL(step.Migration.Name, 22), //nolint:mnd // column width
 			step.Status,
 			risk,
 			estLock,
@@ -171,37 +170,25 @@ func printPlanSummary(out io.Writer, plan *planner.Plan) {
 	fmt.Fprintln(out)
 }
 
+//nolint:gochecknoglobals // constant lookup table for duration ordering
+var durationOrder = map[string]int{
+	planner.DurationUnder1s:   0,
+	planner.Duration1to10s:    1,
+	planner.Duration10sTo5min: 2,
+	planner.DurationOver5min:  3,
+}
+
 func maxLockDuration(impacts []planner.Impact) string {
 	if len(impacts) == 0 {
 		return "-"
 	}
 
-	order := map[string]int{
-		planner.DurationUnder1s:   0,
-		planner.Duration1to10s:    1,
-		planner.Duration10sTo5min: 2,
-		planner.DurationOver5min:  3,
-	}
-
 	maxDur := impacts[0].EstimatedLockDuration
 	for _, imp := range impacts[1:] {
-		if order[imp.EstimatedLockDuration] > order[maxDur] {
+		if durationOrder[imp.EstimatedLockDuration] > durationOrder[maxDur] {
 			maxDur = imp.EstimatedLockDuration
 		}
 	}
 
 	return maxDur
-}
-
-func truncateName(name string, maxLen int) string {
-	if len(name) <= maxLen {
-		return name
-	}
-
-	const ellipsisLen = 3
-	if maxLen <= ellipsisLen {
-		return name[:maxLen]
-	}
-
-	return name[:maxLen-ellipsisLen] + "..."
 }

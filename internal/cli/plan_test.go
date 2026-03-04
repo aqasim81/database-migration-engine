@@ -190,17 +190,3 @@ func TestMaxLockDuration_empty(t *testing.T) {
 
 	assert.Equal(t, "-", maxLockDuration(nil))
 }
-
-func TestTruncateName_short(t *testing.T) {
-	t.Parallel()
-
-	assert.Equal(t, "short", truncateName("short", 22))
-}
-
-func TestTruncateName_long(t *testing.T) {
-	t.Parallel()
-
-	result := truncateName("this_is_a_very_long_migration_name", 22)
-	assert.Len(t, result, 22)
-	assert.Contains(t, result, "...")
-}
