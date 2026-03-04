@@ -414,3 +414,178 @@ func TestApply_concurrentApply_oneSucceeds(t *testing.T) {
 
 	assert.GreaterOrEqual(t, successes, 1)
 }
+
+// --- Rollback integration tests ---
+
+func makeMigrationsWithDown() []migration.Migration {
+	m1Up := "CREATE TABLE users (id SERIAL PRIMARY KEY, name TEXT NOT NULL);"
+	m1Down := "DROP TABLE IF EXISTS users;"
+	m2Up := "CREATE TABLE posts (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id), title TEXT);"
+	m2Down := "DROP TABLE IF EXISTS posts;"
+	m3Up := "ALTER TABLE users ADD COLUMN email TEXT;"
+	m3Down := "ALTER TABLE users DROP COLUMN IF EXISTS email;"
+
+	return []migration.Migration{
+		{
+			Version:  "001",
+			Name:     "create_users",
+			UpSQL:    m1Up,
+			DownSQL:  m1Down,
+			Checksum: migration.ComputeChecksum(m1Up),
+			FilePath: "migrations/V001_create_users.up.sql",
+		},
+		{
+			Version:  "002",
+			Name:     "create_posts",
+			UpSQL:    m2Up,
+			DownSQL:  m2Down,
+			Checksum: migration.ComputeChecksum(m2Up),
+			FilePath: "migrations/V002_create_posts.up.sql",
+		},
+		{
+			Version:  "003",
+			Name:     "add_email",
+			UpSQL:    m3Up,
+			DownSQL:  m3Down,
+			Checksum: migration.ComputeChecksum(m3Up),
+			FilePath: "migrations/V003_add_email.up.sql",
+		},
+	}
+}
+
+func TestRollback_lastOne_leavesOthersApplied(t *testing.T) {
+	t.Parallel()
+
+	pool := SetupPostgres(t)
+	ctx := context.Background()
+	tr := tracker.New(pool)
+	migrations := makeMigrationsWithDown()
+
+	exec := executor.New(pool, tr)
+
+	// Apply 3.
+	err := exec.Apply(ctx, migrations)
+	require.NoError(t, err)
+
+	// Rollback 1.
+	var events []executor.ProgressEvent
+	exec2 := executor.New(pool, tr,
+		executor.WithProgressCallback(func(e executor.ProgressEvent) {
+			events = append(events, e)
+		}),
+	)
+
+	err = exec2.Rollback(ctx, migrations, 1)
+	require.NoError(t, err)
+
+	// Verify 2 remain.
+	applied, err := tr.GetApplied(ctx)
+	require.NoError(t, err)
+	require.Len(t, applied, 2)
+	assert.Equal(t, "001", applied[0].Version)
+	assert.Equal(t, "002", applied[1].Version)
+
+	// Check progress events: 1 rolling_back + 1 completed = 2.
+	require.Len(t, events, 2)
+	assert.Equal(t, executor.StatusRollingBack, events[0].Status)
+	assert.Equal(t, executor.StatusCompleted, events[1].Status)
+}
+
+func TestRollbackToVersion_rollsBackAfterTarget(t *testing.T) {
+	t.Parallel()
+
+	pool := SetupPostgres(t)
+	ctx := context.Background()
+	tr := tracker.New(pool)
+	migrations := makeMigrationsWithDown()
+
+	exec := executor.New(pool, tr)
+
+	err := exec.Apply(ctx, migrations)
+	require.NoError(t, err)
+
+	// Rollback to V001 — V002 and V003 should be rolled back.
+	err = exec.RollbackToVersion(ctx, migrations, "001")
+	require.NoError(t, err)
+
+	applied, err := tr.GetApplied(ctx)
+	require.NoError(t, err)
+	require.Len(t, applied, 1)
+	assert.Equal(t, "001", applied[0].Version)
+}
+
+func TestRollback_noDownFile_returnsError(t *testing.T) {
+	t.Parallel()
+
+	pool := SetupPostgres(t)
+	ctx := context.Background()
+	tr := tracker.New(pool)
+
+	upSQL := "CREATE TABLE nodown (id SERIAL PRIMARY KEY);"
+	migrations := []migration.Migration{
+		{
+			Version:  "001",
+			Name:     "no_down",
+			UpSQL:    upSQL,
+			DownSQL:  "",
+			Checksum: migration.ComputeChecksum(upSQL),
+			FilePath: "migrations/V001_no_down.up.sql",
+		},
+	}
+
+	exec := executor.New(pool, tr)
+
+	err := exec.Apply(ctx, migrations)
+	require.NoError(t, err)
+
+	err = exec.Rollback(ctx, migrations, 1)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, executor.ErrNoDownSQL)
+}
+
+func TestRollback_alreadyRolledBack_returnsErrNothingToRollback(t *testing.T) {
+	t.Parallel()
+
+	pool := SetupPostgres(t)
+	ctx := context.Background()
+	tr := tracker.New(pool)
+	migrations := makeMigrationsWithDown()
+
+	exec := executor.New(pool, tr)
+
+	err := exec.Apply(ctx, migrations)
+	require.NoError(t, err)
+
+	// Rollback all 3.
+	err = exec.Rollback(ctx, migrations, 3)
+	require.NoError(t, err)
+
+	// Rollback again — nothing to roll back.
+	err = exec.Rollback(ctx, migrations, 1)
+	require.ErrorIs(t, err, executor.ErrNothingToRollback)
+}
+
+func TestRollback_reapplyAfterRollback(t *testing.T) {
+	t.Parallel()
+
+	pool := SetupPostgres(t)
+	ctx := context.Background()
+	tr := tracker.New(pool)
+	migrations := makeMigrationsWithDown()
+
+	exec := executor.New(pool, tr)
+
+	// Apply, rollback, re-apply.
+	err := exec.Apply(ctx, migrations)
+	require.NoError(t, err)
+
+	err = exec.Rollback(ctx, migrations, 1)
+	require.NoError(t, err)
+
+	err = exec.Apply(ctx, migrations)
+	require.NoError(t, err)
+
+	applied, err := tr.GetApplied(ctx)
+	require.NoError(t, err)
+	require.Len(t, applied, 3)
+}
