@@ -1,10 +1,12 @@
 package cli
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -175,8 +177,8 @@ func executeMigrations(
 	return nil
 }
 
-// checkDangerousMigrations runs the analyzer and returns true if
-// HIGH/CRITICAL findings were found (blocking apply).
+// checkDangerousMigrations runs the analyzer and, if HIGH/CRITICAL findings
+// are found, prompts the user for confirmation via stdin.
 func checkDangerousMigrations(cmd *cobra.Command, sorted []migration.Migration, cfg *config.Config) (bool, error) {
 	a := analyzer.New(
 		analyzer.WithRegistry(rules.NewDefaultRegistry()),
@@ -189,6 +191,36 @@ func checkDangerousMigrations(cmd *cobra.Command, sorted []migration.Migration, 
 	}
 
 	hasHighOrCritical := printAnalysisResults(cmd, results)
+	if !hasHighOrCritical {
+		return false, nil
+	}
 
-	return hasHighOrCritical, nil
+	out := cmd.OutOrStdout()
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, "Dangerous operations detected. Type \"yes\" to proceed, or use --force to skip this check:")
+
+	confirmed, err := readConfirmation(cmd.InOrStdin())
+	if err != nil {
+		return true, fmt.Errorf("reading confirmation: %w", err)
+	}
+
+	if !confirmed {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+// readConfirmation reads a line from the reader and returns true if it's "yes".
+func readConfirmation(in io.Reader) (bool, error) {
+	scanner := bufio.NewScanner(in)
+	if !scanner.Scan() {
+		if err := scanner.Err(); err != nil {
+			return false, fmt.Errorf("reading stdin: %w", err)
+		}
+
+		return false, nil
+	}
+
+	return strings.TrimSpace(scanner.Text()) == "yes", nil
 }

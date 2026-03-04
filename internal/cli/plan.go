@@ -24,6 +24,7 @@ analysis results, estimated impact, and execution order.`,
 
 func init() { //nolint:gochecknoinits // standard Cobra pattern for flag registration
 	planCmd.Flags().Bool("pending-only", false, "show only pending migrations")
+	planCmd.Flags().String("format", "text", "output format (text, json)")
 	rootCmd.AddCommand(planCmd)
 }
 
@@ -73,9 +74,15 @@ func runPlan(cmd *cobra.Command, _ []string) error {
 		plan = planner.PendingOnly(plan)
 	}
 
-	printPlan(cmd.OutOrStdout(), plan)
+	format := getFormat(cmd)
 
-	return nil
+	switch format {
+	case FormatJSON:
+		return printPlanJSON(cmd.OutOrStdout(), plan)
+	default:
+		printPlan(cmd.OutOrStdout(), plan)
+		return nil
+	}
 }
 
 // loadAppliedState optionally connects to the database to get applied migrations
@@ -138,7 +145,7 @@ func printPlan(out io.Writer, plan *planner.Plan) {
 		estLock := "-"
 
 		if step.Status == planner.StatusPending && len(step.Findings) > 0 {
-			risk = step.MaxSeverity().String()
+			risk = colorSeverity(step.MaxSeverity())
 			estLock = maxLockDuration(step.Impacts)
 		}
 
@@ -154,6 +161,50 @@ func printPlan(out io.Writer, plan *planner.Plan) {
 
 	fmt.Fprintln(out)
 	printPlanSummary(out, plan)
+}
+
+func printPlanJSON(out io.Writer, plan *planner.Plan) error {
+	output := PlanJSONOutput{
+		TotalPending:  plan.TotalPending,
+		HighRiskCount: plan.HighRiskCount,
+		CriticalCount: plan.CriticalCount,
+		Steps:         make([]PlanJSONStep, 0, len(plan.Steps)),
+	}
+
+	for _, step := range plan.Steps {
+		risk := "-"
+		estLock := "-"
+
+		if step.Status == planner.StatusPending && len(step.Findings) > 0 {
+			risk = step.MaxSeverity().String()
+			estLock = maxLockDuration(step.Impacts)
+		}
+
+		s := PlanJSONStep{
+			Version:       step.Migration.Version,
+			Name:          step.Migration.Name,
+			Status:        step.Status,
+			Risk:          risk,
+			EstimatedLock: estLock,
+			RunInTx:       step.RunInTx,
+		}
+
+		for _, f := range step.Findings {
+			s.Findings = append(s.Findings, AnalyzeJSONFinding{
+				Rule:       f.Rule,
+				Severity:   f.Severity.String(),
+				Table:      f.Table,
+				Message:    f.Message,
+				Suggestion: f.Suggestion,
+				Statement:  f.Statement,
+				LockType:   f.LockType,
+			})
+		}
+
+		output.Steps = append(output.Steps, s)
+	}
+
+	return printJSON(out, output)
 }
 
 func printPlanSummary(out io.Writer, plan *planner.Plan) {

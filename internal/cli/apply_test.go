@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -66,12 +67,50 @@ func TestCheckDangerousMigrations_safeSQL_returnsFalse(t *testing.T) {
 	assert.False(t, blocked)
 }
 
-func TestCheckDangerousMigrations_dangerousSQL_returnsTrue(t *testing.T) {
+func TestCheckDangerousMigrations_dangerousSQL_noInput_returnsTrue(t *testing.T) {
 	t.Parallel()
 
 	buf := new(bytes.Buffer)
 	cmd := &cobra.Command{}
 	cmd.SetOut(buf)
+	cmd.SetIn(strings.NewReader("")) // EOF — no confirmation
+	cfg := config.New()
+
+	sorted, err := loadAndSortMigrations("./testdata/migrations", new(bytes.Buffer))
+	require.NoError(t, err)
+
+	blocked, err := checkDangerousMigrations(cmd, sorted, cfg)
+
+	require.NoError(t, err)
+	assert.True(t, blocked)
+	assert.Contains(t, buf.String(), "Dangerous operations detected")
+}
+
+func TestCheckDangerousMigrations_dangerousSQL_confirmedYes_unblocks(t *testing.T) {
+	t.Parallel()
+
+	buf := new(bytes.Buffer)
+	cmd := &cobra.Command{}
+	cmd.SetOut(buf)
+	cmd.SetIn(strings.NewReader("yes\n"))
+	cfg := config.New()
+
+	sorted, err := loadAndSortMigrations("./testdata/migrations", new(bytes.Buffer))
+	require.NoError(t, err)
+
+	blocked, err := checkDangerousMigrations(cmd, sorted, cfg)
+
+	require.NoError(t, err)
+	assert.False(t, blocked)
+}
+
+func TestCheckDangerousMigrations_dangerousSQL_confirmedNo_blocked(t *testing.T) {
+	t.Parallel()
+
+	buf := new(bytes.Buffer)
+	cmd := &cobra.Command{}
+	cmd.SetOut(buf)
+	cmd.SetIn(strings.NewReader("no\n"))
 	cfg := config.New()
 
 	sorted, err := loadAndSortMigrations("./testdata/migrations", new(bytes.Buffer))
@@ -113,9 +152,58 @@ func TestRunApply_dangerousMigrations_blocked(t *testing.T) { //nolint:parallelt
 	buf := new(bytes.Buffer)
 	cmd := &cobra.Command{}
 	cmd.SetOut(buf)
+	cmd.SetIn(strings.NewReader("no\n")) // deny confirmation
 
 	err := runApply(cmd, nil)
 
 	require.Error(t, err)
 	assert.ErrorIs(t, err, errDangerousMigrations)
+}
+
+func TestReadConfirmation_yes(t *testing.T) {
+	t.Parallel()
+
+	confirmed, err := readConfirmation(strings.NewReader("yes\n"))
+	require.NoError(t, err)
+	assert.True(t, confirmed)
+}
+
+func TestReadConfirmation_yesWithSpaces(t *testing.T) {
+	t.Parallel()
+
+	confirmed, err := readConfirmation(strings.NewReader("  yes  \n"))
+	require.NoError(t, err)
+	assert.True(t, confirmed)
+}
+
+func TestReadConfirmation_no(t *testing.T) {
+	t.Parallel()
+
+	confirmed, err := readConfirmation(strings.NewReader("no\n"))
+	require.NoError(t, err)
+	assert.False(t, confirmed)
+}
+
+func TestReadConfirmation_empty(t *testing.T) {
+	t.Parallel()
+
+	confirmed, err := readConfirmation(strings.NewReader("\n"))
+	require.NoError(t, err)
+	assert.False(t, confirmed)
+}
+
+func TestReadConfirmation_eof(t *testing.T) {
+	t.Parallel()
+
+	confirmed, err := readConfirmation(strings.NewReader(""))
+	require.NoError(t, err)
+	assert.False(t, confirmed)
+}
+
+func TestReadConfirmation_caseSensitive(t *testing.T) {
+	t.Parallel()
+
+	confirmed, err := readConfirmation(strings.NewReader("Yes\n"))
+	require.NoError(t, err)
+	assert.False(t, confirmed)
 }

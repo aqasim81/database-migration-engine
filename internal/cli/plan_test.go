@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"encoding/json"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -189,4 +190,83 @@ func TestMaxLockDuration_empty(t *testing.T) {
 	t.Parallel()
 
 	assert.Equal(t, "-", maxLockDuration(nil))
+}
+
+func TestPrintPlanJSON_validStructure(t *testing.T) {
+	t.Parallel()
+
+	plan := &planner.Plan{
+		Steps: []planner.MigrationStep{
+			{
+				Migration: &migration.Migration{Version: "001", Name: "create_users"},
+				Status:    planner.StatusApplied,
+				RunInTx:   true,
+			},
+			{
+				Migration: &migration.Migration{Version: "002", Name: "add_email_index"},
+				Status:    planner.StatusPending,
+				Findings: []analyzer.Finding{
+					{
+						Severity: analyzer.High,
+						Rule:     "create-index-not-concurrent",
+						Table:    "users",
+						Message:  "Index creation locks table",
+						LockType: "SHARE",
+					},
+				},
+				Impacts: []planner.Impact{
+					{EstimatedLockDuration: planner.DurationOver5min},
+				},
+				RunInTx: true,
+			},
+		},
+		TotalPending:  1,
+		HighRiskCount: 1,
+	}
+
+	buf := new(bytes.Buffer)
+	err := printPlanJSON(buf, plan)
+
+	require.NoError(t, err)
+
+	var output PlanJSONOutput
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &output))
+
+	assert.Len(t, output.Steps, 2)
+	assert.Equal(t, 1, output.TotalPending)
+	assert.Equal(t, 1, output.HighRiskCount)
+	assert.Equal(t, 0, output.CriticalCount)
+
+	assert.Equal(t, "001", output.Steps[0].Version)
+	assert.Equal(t, planner.StatusApplied, output.Steps[0].Status)
+	assert.Equal(t, "-", output.Steps[0].Risk)
+	assert.True(t, output.Steps[0].RunInTx)
+
+	assert.Equal(t, "002", output.Steps[1].Version)
+	assert.Equal(t, planner.StatusPending, output.Steps[1].Status)
+	assert.Equal(t, "HIGH", output.Steps[1].Risk)
+	assert.Equal(t, planner.DurationOver5min, output.Steps[1].EstimatedLock)
+	assert.Len(t, output.Steps[1].Findings, 1)
+	assert.Equal(t, "SHARE", output.Steps[1].Findings[0].LockType)
+}
+
+func TestRunPlan_jsonFormat(t *testing.T) { //nolint:paralleltest // writes global AppConfig
+	AppConfig = &config.Config{
+		MigrationsDir:   "./testdata/migrations",
+		TargetPGVersion: 14,
+	}
+
+	buf := new(bytes.Buffer)
+	cmd := &cobra.Command{}
+	cmd.SetOut(buf)
+	cmd.Flags().String("format", "text", "")
+	require.NoError(t, cmd.Flags().Set("format", "json"))
+
+	err := runPlan(cmd, nil)
+	require.NoError(t, err)
+
+	var output PlanJSONOutput
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &output))
+
+	assert.NotEmpty(t, output.Steps)
 }
