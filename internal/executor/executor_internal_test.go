@@ -815,6 +815,54 @@ func TestRollback_lockReleased(t *testing.T) {
 	assert.True(t, lock.released)
 }
 
+func TestRollback_partialFailure_earlierRollbacksTracked(t *testing.T) {
+	t.Parallel()
+
+	mt := newMockTracker()
+	mt.appliedList = makeAppliedList("001", "002", "003")
+
+	callCount := 0
+	execErr := errors.New("SQL error on second rollback")
+
+	var events []ProgressEvent
+
+	e := &Executor{
+		tracker:     mt,
+		acquireLock: noopLockFn,
+		execSQL: func(_ context.Context, _, _ string) error {
+			callCount++
+			if callCount == 2 {
+				return execErr
+			}
+
+			return nil
+		},
+		onProgress: func(ev ProgressEvent) { events = append(events, ev) },
+	}
+
+	migrations := []migration.Migration{
+		testMigrationWithDown("001", "CREATE TABLE a (id INT);", "DROP TABLE a;"),
+		testMigrationWithDown("002", "CREATE TABLE b (id INT);", "DROP TABLE b;"),
+		testMigrationWithDown("003", "CREATE TABLE c (id INT);", "DROP TABLE c;"),
+	}
+
+	err := e.Rollback(context.Background(), migrations, 3)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "rolling back migration 002")
+
+	// First rollback (003) should have succeeded and been recorded.
+	require.Len(t, mt.rolledBack, 1)
+	assert.Equal(t, "003", mt.rolledBack[0])
+
+	// Events: rolling_back(003), completed(003), rolling_back(002), failed(002).
+	require.Len(t, events, 4)
+	assert.Equal(t, StatusRollingBack, events[0].Status)
+	assert.Equal(t, StatusCompleted, events[1].Status)
+	assert.Equal(t, StatusRollingBack, events[2].Status)
+	assert.Equal(t, StatusFailed, events[3].Status)
+}
+
 // --- RollbackToVersion tests ---
 
 func TestRollbackToVersion_rollsBackAfterTarget(t *testing.T) {

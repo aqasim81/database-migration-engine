@@ -25,6 +25,7 @@ down migration files.`,
 func init() { //nolint:gochecknoinits // standard Cobra pattern for flag registration
 	rollbackCmd.Flags().Int("steps", 1, "number of migrations to roll back")
 	rollbackCmd.Flags().String("target", "", "roll back to a specific migration version")
+	rollbackCmd.MarkFlagsMutuallyExclusive("steps", "target")
 	rootCmd.AddCommand(rollbackCmd)
 }
 
