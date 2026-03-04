@@ -49,8 +49,8 @@ type lockReleaser interface {
 // lockFunc acquires an advisory lock and returns a releaser.
 type lockFunc func(ctx context.Context) (lockReleaser, error)
 
-// sqlExecFunc executes a single migration's SQL.
-type sqlExecFunc func(ctx context.Context, m *migration.Migration) error
+// runSQLFunc executes SQL with a descriptive label for error wrapping.
+type runSQLFunc func(ctx context.Context, sql, label string) error
 
 // Executor applies pending migrations with transaction safety, timeouts,
 // and advisory locks to prevent concurrent runs.
@@ -62,8 +62,7 @@ type Executor struct {
 	dryRun           bool
 	onProgress       func(ProgressEvent)
 	acquireLock      lockFunc
-	execSQL          sqlExecFunc
-	execDownSQL      sqlExecFunc
+	execSQL          runSQLFunc
 }
 
 // Option configures an Executor.
@@ -109,11 +108,7 @@ func New(pool *pgxpool.Pool, t MigrationTracker, opts ...Option) *Executor {
 	}
 
 	if e.execSQL == nil {
-		e.execSQL = e.executeMigration
-	}
-
-	if e.execDownSQL == nil {
-		e.execDownSQL = e.executeDownMigration
+		e.execSQL = e.runSQL
 	}
 
 	return e
@@ -150,36 +145,44 @@ func (e *Executor) Rollback(ctx context.Context, migrations []migration.Migratio
 		return nil
 	}
 
-	lock, err := e.acquireLock(ctx)
-	if err != nil {
-		return fmt.Errorf("acquiring migration lock: %w", err)
-	}
-	defer lock.Release(ctx) //nolint:errcheck // best-effort release on return
+	return e.withRollbackLock(ctx, migrations, func(applied []tracker.AppliedMigration) ([]tracker.AppliedMigration, error) {
+		if len(applied) == 0 {
+			return nil, ErrNothingToRollback
+		}
 
-	if err := e.tracker.EnsureTable(ctx); err != nil {
-		return err
-	}
+		targets := reverseApplied(applied)
+		if steps < len(targets) {
+			targets = targets[:steps]
+		}
 
-	applied, err := e.tracker.GetApplied(ctx)
-	if err != nil {
-		return fmt.Errorf("getting applied migrations: %w", err)
-	}
-
-	if len(applied) == 0 {
-		return ErrNothingToRollback
-	}
-
-	targets := reverseApplied(applied)
-	if steps < len(targets) {
-		targets = targets[:steps]
-	}
-
-	return e.rollbackTargets(ctx, targets, migrations)
+		return targets, nil
+	})
 }
 
 // RollbackToVersion reverses all applied migrations with versions greater
 // than the target version. The target version itself is NOT rolled back.
 func (e *Executor) RollbackToVersion(ctx context.Context, migrations []migration.Migration, target string) error {
+	return e.withRollbackLock(ctx, migrations, func(applied []tracker.AppliedMigration) ([]tracker.AppliedMigration, error) {
+		targets, err := appliedAfterVersion(applied, target)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(targets) == 0 {
+			return nil, ErrNothingToRollback
+		}
+
+		return targets, nil
+	})
+}
+
+// withRollbackLock handles the shared rollback preamble: advisory lock,
+// ensure table, get applied list, compute targets via selectFn, and execute.
+func (e *Executor) withRollbackLock(
+	ctx context.Context,
+	migrations []migration.Migration,
+	selectFn func([]tracker.AppliedMigration) ([]tracker.AppliedMigration, error),
+) error {
 	lock, err := e.acquireLock(ctx)
 	if err != nil {
 		return fmt.Errorf("acquiring migration lock: %w", err)
@@ -195,13 +198,9 @@ func (e *Executor) RollbackToVersion(ctx context.Context, migrations []migration
 		return fmt.Errorf("getting applied migrations: %w", err)
 	}
 
-	targets, err := appliedAfterVersion(applied, target)
+	targets, err := selectFn(applied)
 	if err != nil {
 		return err
-	}
-
-	if len(targets) == 0 {
-		return ErrNothingToRollback
 	}
 
 	return e.rollbackTargets(ctx, targets, migrations)
@@ -248,7 +247,7 @@ func (e *Executor) rollbackOne(
 	e.fireProgress(ProgressEvent{Migration: m, Status: StatusRollingBack})
 
 	start := time.Now()
-	execErr := e.execDownSQL(ctx, m)
+	execErr := e.execSQL(ctx, m.DownSQL, "executing down SQL")
 	duration := time.Since(start)
 
 	if execErr != nil {
@@ -275,16 +274,17 @@ func (e *Executor) rollbackOne(
 	return nil
 }
 
-// executeDownMigration runs the DownSQL for a migration, choosing transaction
-// mode based on whether it contains concurrent operations.
-func (e *Executor) executeDownMigration(ctx context.Context, m *migration.Migration) error {
-	concurrent, err := containsConcurrentOp(m.DownSQL)
+// runSQL executes a SQL string, choosing between transactional and
+// non-transactional execution based on whether it contains concurrent
+// operations (CREATE/DROP INDEX CONCURRENTLY).
+func (e *Executor) runSQL(ctx context.Context, sql, label string) error {
+	concurrent, err := containsConcurrentOp(sql)
 	if err != nil {
 		return err
 	}
 
 	if concurrent {
-		return ExecWithoutTransaction(ctx, e.pool, m.DownSQL)
+		return ExecWithoutTransaction(ctx, e.pool, sql)
 	}
 
 	return ExecInTransaction(ctx, e.pool, func(tx pgx.Tx) error {
@@ -300,8 +300,8 @@ func (e *Executor) executeDownMigration(ctx context.Context, m *migration.Migrat
 			}
 		}
 
-		if _, err := tx.Exec(ctx, m.DownSQL); err != nil {
-			return fmt.Errorf("executing down SQL: %w", err)
+		if _, err := tx.Exec(ctx, sql); err != nil {
+			return fmt.Errorf("%s: %w", label, err)
 		}
 
 		return nil
@@ -329,7 +329,7 @@ func (e *Executor) applyOne(ctx context.Context, m *migration.Migration) error {
 	e.fireProgress(ProgressEvent{Migration: m, Status: StatusStarting})
 
 	start := time.Now()
-	execErr := e.execSQL(ctx, m)
+	execErr := e.execSQL(ctx, m.UpSQL, "executing SQL")
 	duration := time.Since(start)
 
 	if execErr != nil {
@@ -340,7 +340,7 @@ func (e *Executor) applyOne(ctx context.Context, m *migration.Migration) error {
 			Error:     execErr,
 		})
 
-		return fmt.Errorf("executing migration %s: %w", m.Version, execErr)
+		return fmt.Errorf("applying migration %s: %w", m.Version, execErr)
 	}
 
 	if err := e.tracker.RecordApplied(ctx, tracker.RecordParams{
@@ -386,40 +386,6 @@ func (e *Executor) shouldSkip(ctx context.Context, m *migration.Migration) (bool
 	}
 
 	return true, nil
-}
-
-// executeMigration runs the SQL for a single migration, choosing between
-// transactional and non-transactional execution based on whether the
-// migration contains CREATE INDEX CONCURRENTLY.
-func (e *Executor) executeMigration(ctx context.Context, m *migration.Migration) error {
-	concurrent, err := containsConcurrentOp(m.UpSQL)
-	if err != nil {
-		return err
-	}
-
-	if concurrent {
-		return ExecWithoutTransaction(ctx, e.pool, m.UpSQL)
-	}
-
-	return ExecInTransaction(ctx, e.pool, func(tx pgx.Tx) error {
-		if e.lockTimeout > 0 {
-			if err := SetLockTimeout(ctx, tx, e.lockTimeout); err != nil {
-				return err
-			}
-		}
-
-		if e.statementTimeout > 0 {
-			if err := SetStatementTimeout(ctx, tx, e.statementTimeout); err != nil {
-				return err
-			}
-		}
-
-		if _, err := tx.Exec(ctx, m.UpSQL); err != nil {
-			return fmt.Errorf("executing SQL: %w", err)
-		}
-
-		return nil
-	})
 }
 
 func (e *Executor) fireProgress(event ProgressEvent) {

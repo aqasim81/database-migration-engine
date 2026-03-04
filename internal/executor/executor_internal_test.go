@@ -114,7 +114,7 @@ func noopLockFn(_ context.Context) (lockReleaser, error) {
 	return &mockLock{}, nil
 }
 
-func noopExecFn(_ context.Context, _ *migration.Migration) error {
+func noopExecFn(_ context.Context, _, _ string) error {
 	return nil
 }
 
@@ -304,7 +304,7 @@ func TestApplyOne_execError_reportsFailed(t *testing.T) {
 	e := &Executor{
 		tracker:    mt,
 		onProgress: func(ev ProgressEvent) { events = append(events, ev) },
-		execSQL:    func(_ context.Context, _ *migration.Migration) error { return execErr },
+		execSQL:    func(_ context.Context, _ string, _ string) error { return execErr },
 	}
 
 	m := testMigration("001", "CREATE TABLE t (id INT);")
@@ -312,7 +312,7 @@ func TestApplyOne_execError_reportsFailed(t *testing.T) {
 	err := e.applyOne(context.Background(), &m)
 
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "executing migration 001")
+	assert.Contains(t, err.Error(), "applying migration 001")
 
 	require.Len(t, events, 2)
 	assert.Equal(t, StatusStarting, events[0].Status)
@@ -545,9 +545,9 @@ func TestRollbackOne_validDownSQL_executesAndRecords(t *testing.T) {
 	var events []ProgressEvent
 
 	e := &Executor{
-		tracker:     mt,
-		execDownSQL: noopExecFn,
-		onProgress:  func(ev ProgressEvent) { events = append(events, ev) },
+		tracker:    mt,
+		execSQL:    noopExecFn,
+		onProgress: func(ev ProgressEvent) { events = append(events, ev) },
 	}
 
 	m := testMigrationWithDown("001", "CREATE TABLE t (id INT);", "DROP TABLE t;")
@@ -567,7 +567,7 @@ func TestRollbackOne_validDownSQL_executesAndRecords(t *testing.T) {
 func TestRollbackOne_emptyDownSQL_returnsErrNoDownSQL(t *testing.T) {
 	t.Parallel()
 
-	e := &Executor{tracker: newMockTracker(), execDownSQL: noopExecFn}
+	e := &Executor{tracker: newMockTracker(), execSQL: noopExecFn}
 
 	m := testMigrationWithDown("001", "CREATE TABLE t (id INT);", "")
 	lookup := buildMigrationLookup([]migration.Migration{m})
@@ -582,7 +582,7 @@ func TestRollbackOne_emptyDownSQL_returnsErrNoDownSQL(t *testing.T) {
 func TestRollbackOne_migrationNotFound_returnsError(t *testing.T) {
 	t.Parallel()
 
-	e := &Executor{tracker: newMockTracker(), execDownSQL: noopExecFn}
+	e := &Executor{tracker: newMockTracker(), execSQL: noopExecFn}
 
 	lookup := make(map[string]*migration.Migration)
 	applied := &tracker.AppliedMigration{Version: "999"}
@@ -603,7 +603,7 @@ func TestRollbackOne_execError_reportsFailed(t *testing.T) {
 	e := &Executor{
 		tracker:    mt,
 		onProgress: func(ev ProgressEvent) { events = append(events, ev) },
-		execDownSQL: func(_ context.Context, _ *migration.Migration) error {
+		execSQL: func(_ context.Context, _ string, _ string) error {
 			return execErr
 		},
 	}
@@ -628,7 +628,7 @@ func TestRollbackOne_recordError_returnsError(t *testing.T) {
 	mt := newMockTracker()
 	mt.rollbackErr = errors.New("record failed")
 
-	e := &Executor{tracker: mt, execDownSQL: noopExecFn}
+	e := &Executor{tracker: mt, execSQL: noopExecFn}
 
 	m := testMigrationWithDown("001", "CREATE TABLE t (id INT);", "DROP TABLE t;")
 	lookup := buildMigrationLookup([]migration.Migration{m})
@@ -647,10 +647,10 @@ func TestRollbackOne_dryRun_skipsExecution(t *testing.T) {
 	var events []ProgressEvent
 
 	e := &Executor{
-		tracker:     mt,
-		dryRun:      true,
-		execDownSQL: noopExecFn,
-		onProgress:  func(ev ProgressEvent) { events = append(events, ev) },
+		tracker:    mt,
+		dryRun:     true,
+		execSQL:    noopExecFn,
+		onProgress: func(ev ProgressEvent) { events = append(events, ev) },
 	}
 
 	m := testMigrationWithDown("001", "CREATE TABLE t (id INT);", "DROP TABLE t;")
@@ -678,7 +678,7 @@ func TestRollback_fullFlow_rollsBackLastN(t *testing.T) {
 	e := &Executor{
 		tracker:     mt,
 		acquireLock: noopLockFn,
-		execDownSQL: noopExecFn,
+		execSQL:     noopExecFn,
 		onProgress:  func(ev ProgressEvent) { events = append(events, ev) },
 	}
 
@@ -730,7 +730,7 @@ func TestRollback_stepsExceedsApplied_rollsBackAll(t *testing.T) {
 	e := &Executor{
 		tracker:     mt,
 		acquireLock: noopLockFn,
-		execDownSQL: noopExecFn,
+		execSQL:     noopExecFn,
 	}
 
 	migrations := []migration.Migration{
@@ -802,7 +802,7 @@ func TestRollback_lockReleased(t *testing.T) {
 		acquireLock: func(_ context.Context) (lockReleaser, error) {
 			return lock, nil
 		},
-		execDownSQL: noopExecFn,
+		execSQL: noopExecFn,
 	}
 
 	migrations := []migration.Migration{
@@ -826,7 +826,7 @@ func TestRollbackToVersion_rollsBackAfterTarget(t *testing.T) {
 	e := &Executor{
 		tracker:     mt,
 		acquireLock: noopLockFn,
-		execDownSQL: noopExecFn,
+		execSQL:     noopExecFn,
 	}
 
 	migrations := []migration.Migration{

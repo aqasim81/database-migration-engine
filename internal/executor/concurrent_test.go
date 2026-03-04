@@ -58,7 +58,7 @@ func TestContainsConcurrentOp_emptySQL_returnsFalse(t *testing.T) {
 func TestContainsConcurrentOp_invalidSQL_returnsError(t *testing.T) {
 	t.Parallel()
 
-	_, err := containsConcurrentOp("NOT VALID SQL ;;; @@@ !!!")
+	_, err := containsConcurrentOp("CREATE INDEX CONCURRENTLY ;;; @@@ !!!")
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "parsing SQL")
