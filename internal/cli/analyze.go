@@ -173,11 +173,6 @@ func printAnalysisGitHub(out io.Writer, results []analyzer.AnalysisResult) bool 
 	return hasHighOrCritical
 }
 
-// printAnalysisResults is the legacy text printer used by apply's safety check.
-func printAnalysisResults(cmd *cobra.Command, results []analyzer.AnalysisResult) bool {
-	return printAnalysisText(cmd.OutOrStdout(), results)
-}
-
 func countMigrationsWithFindings(results []analyzer.AnalysisResult) int {
 	count := 0
 

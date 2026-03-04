@@ -91,28 +91,24 @@ func TestCountMigrationsWithFindings(t *testing.T) {
 	}
 }
 
-func TestPrintAnalysisResults_noFindings_printsNoDangers(t *testing.T) {
+func TestPrintAnalysisText_noFindings_printsNoDangers(t *testing.T) {
 	t.Parallel()
 
 	buf := new(bytes.Buffer)
-	cmd := &cobra.Command{}
-	cmd.SetOut(buf)
 
 	results := []analyzer.AnalysisResult{
 		{Migration: &migration.Migration{Version: "001", Name: "safe"}, Findings: nil},
 	}
 
-	hasHigh := printAnalysisResults(cmd, results)
+	hasHigh := printAnalysisText(buf, results)
 	assert.False(t, hasHigh)
 	assert.Contains(t, buf.String(), "No dangerous operations detected.")
 }
 
-func TestPrintAnalysisResults_withFindings_formatsOutput(t *testing.T) {
+func TestPrintAnalysisText_withFindings_formatsOutput(t *testing.T) {
 	t.Parallel()
 
 	buf := new(bytes.Buffer)
-	cmd := &cobra.Command{}
-	cmd.SetOut(buf)
 
 	results := []analyzer.AnalysisResult{
 		{
@@ -131,7 +127,7 @@ func TestPrintAnalysisResults_withFindings_formatsOutput(t *testing.T) {
 		},
 	}
 
-	hasHigh := printAnalysisResults(cmd, results)
+	hasHigh := printAnalysisText(buf, results)
 	assert.True(t, hasHigh)
 
 	output := buf.String()
@@ -144,12 +140,10 @@ func TestPrintAnalysisResults_withFindings_formatsOutput(t *testing.T) {
 	assert.Contains(t, output, "Found 1 finding(s) across 1 migration(s).")
 }
 
-func TestPrintAnalysisResults_lowSeverityOnly_returnsFalse(t *testing.T) {
+func TestPrintAnalysisText_lowSeverityOnly_returnsFalse(t *testing.T) {
 	t.Parallel()
 
 	buf := new(bytes.Buffer)
-	cmd := &cobra.Command{}
-	cmd.SetOut(buf)
 
 	results := []analyzer.AnalysisResult{
 		{
@@ -161,17 +155,15 @@ func TestPrintAnalysisResults_lowSeverityOnly_returnsFalse(t *testing.T) {
 		},
 	}
 
-	hasHigh := printAnalysisResults(cmd, results)
+	hasHigh := printAnalysisText(buf, results)
 	assert.False(t, hasHigh)
 	assert.Contains(t, buf.String(), "Found 1 finding(s)")
 }
 
-func TestPrintAnalysisResults_noStatement_skipsSQL(t *testing.T) {
+func TestPrintAnalysisText_noStatement_skipsSQL(t *testing.T) {
 	t.Parallel()
 
 	buf := new(bytes.Buffer)
-	cmd := &cobra.Command{}
-	cmd.SetOut(buf)
 
 	results := []analyzer.AnalysisResult{
 		{
@@ -183,7 +175,7 @@ func TestPrintAnalysisResults_noStatement_skipsSQL(t *testing.T) {
 		},
 	}
 
-	printAnalysisResults(cmd, results)
+	printAnalysisText(buf, results)
 	assert.NotContains(t, buf.String(), "SQL:")
 }
 

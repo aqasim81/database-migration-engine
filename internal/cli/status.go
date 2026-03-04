@@ -140,7 +140,7 @@ func printStatusText(out io.Writer, entries []statusEntry) {
 	fmt.Fprintf(out, "%-10s %-22s %-12s %-22s %s\n",
 		"-------", "----", "------", "----------", "--------")
 
-	mismatches := []statusEntry{}
+	var mismatches []statusEntry
 
 	for _, e := range entries {
 		appliedAt := "-"

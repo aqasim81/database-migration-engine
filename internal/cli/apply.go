@@ -190,7 +190,7 @@ func checkDangerousMigrations(cmd *cobra.Command, sorted []migration.Migration, 
 		return false, fmt.Errorf("analyzing migrations: %w", err)
 	}
 
-	hasHighOrCritical := printAnalysisResults(cmd, results)
+	hasHighOrCritical := printAnalysisText(cmd.OutOrStdout(), results)
 	if !hasHighOrCritical {
 		return false, nil
 	}

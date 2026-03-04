@@ -32,7 +32,7 @@ var ( //nolint:gochecknoglobals // constant style definitions
 	styleMedium   = lipgloss.NewStyle().Foreground(lipgloss.Color("3"))            // yellow
 	styleHigh     = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))            // red
 	styleCritical = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("9")) // bright red bold
-	styleWarning  = lipgloss.NewStyle().Foreground(lipgloss.Color("3"))            // yellow
+	styleWarning  = styleMedium                                                    // yellow (same as medium)
 )
 
 // colorSeverity returns the severity label styled with lipgloss.

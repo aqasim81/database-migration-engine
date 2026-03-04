@@ -122,6 +122,16 @@ func loadAppliedState(
 	return applied, planner.NewPgTableSizer(pool), pool.Close, nil
 }
 
+// stepRiskAndLock returns the plain risk label and estimated lock duration for a plan step.
+// Returns ("-", "-") when the step is not pending or has no findings.
+func stepRiskAndLock(step *planner.MigrationStep) (risk, estLock string) {
+	if step.Status != planner.StatusPending || len(step.Findings) == 0 {
+		return "-", "-"
+	}
+
+	return step.MaxSeverity().String(), maxLockDuration(step.Impacts)
+}
+
 func printPlan(out io.Writer, plan *planner.Plan) {
 	fmt.Fprintln(out, "Migration Plan")
 	fmt.Fprintln(out, "==================================================")
@@ -141,12 +151,9 @@ func printPlan(out io.Writer, plan *planner.Plan) {
 		"--", "-------", "----", "------", "----", "---------")
 
 	for i, step := range plan.Steps {
-		risk := "-"
-		estLock := "-"
-
+		risk, estLock := stepRiskAndLock(&step)
 		if step.Status == planner.StatusPending && len(step.Findings) > 0 {
 			risk = colorSeverity(step.MaxSeverity())
-			estLock = maxLockDuration(step.Impacts)
 		}
 
 		fmt.Fprintf(out, "%-4d %-10s %-22s %-10s %-10s %s\n",
@@ -172,13 +179,7 @@ func printPlanJSON(out io.Writer, plan *planner.Plan) error {
 	}
 
 	for _, step := range plan.Steps {
-		risk := "-"
-		estLock := "-"
-
-		if step.Status == planner.StatusPending && len(step.Findings) > 0 {
-			risk = step.MaxSeverity().String()
-			estLock = maxLockDuration(step.Impacts)
-		}
+		risk, estLock := stepRiskAndLock(&step)
 
 		s := PlanJSONStep{
 			Version:       step.Migration.Version,
