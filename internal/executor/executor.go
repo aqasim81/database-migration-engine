@@ -63,6 +63,7 @@ type Executor struct {
 	onProgress       func(ProgressEvent)
 	acquireLock      lockFunc
 	execSQL          sqlExecFunc
+	execDownSQL      sqlExecFunc
 }
 
 // Option configures an Executor.
@@ -111,6 +112,10 @@ func New(pool *pgxpool.Pool, t MigrationTracker, opts ...Option) *Executor {
 		e.execSQL = e.executeMigration
 	}
 
+	if e.execDownSQL == nil {
+		e.execDownSQL = e.executeDownMigration
+	}
+
 	return e
 }
 
@@ -140,14 +145,167 @@ func (e *Executor) Apply(ctx context.Context, migrations []migration.Migration) 
 // Rollback reverses the most recent `steps` applied migrations using their
 // down migration files. The caller must provide all known migrations so
 // their DownSQL can be looked up by version.
-func (e *Executor) Rollback(_ context.Context, _ []migration.Migration, _ int) error {
-	return nil // implementation follows in next commit
+func (e *Executor) Rollback(ctx context.Context, migrations []migration.Migration, steps int) error {
+	if steps <= 0 {
+		return nil
+	}
+
+	lock, err := e.acquireLock(ctx)
+	if err != nil {
+		return fmt.Errorf("acquiring migration lock: %w", err)
+	}
+	defer lock.Release(ctx) //nolint:errcheck // best-effort release on return
+
+	if err := e.tracker.EnsureTable(ctx); err != nil {
+		return err
+	}
+
+	applied, err := e.tracker.GetApplied(ctx)
+	if err != nil {
+		return fmt.Errorf("getting applied migrations: %w", err)
+	}
+
+	if len(applied) == 0 {
+		return ErrNothingToRollback
+	}
+
+	targets := reverseApplied(applied)
+	if steps < len(targets) {
+		targets = targets[:steps]
+	}
+
+	return e.rollbackTargets(ctx, targets, migrations)
 }
 
 // RollbackToVersion reverses all applied migrations with versions greater
 // than the target version. The target version itself is NOT rolled back.
-func (e *Executor) RollbackToVersion(_ context.Context, _ []migration.Migration, _ string) error {
-	return nil // implementation follows in next commit
+func (e *Executor) RollbackToVersion(ctx context.Context, migrations []migration.Migration, target string) error {
+	lock, err := e.acquireLock(ctx)
+	if err != nil {
+		return fmt.Errorf("acquiring migration lock: %w", err)
+	}
+	defer lock.Release(ctx) //nolint:errcheck // best-effort release on return
+
+	if err := e.tracker.EnsureTable(ctx); err != nil {
+		return err
+	}
+
+	applied, err := e.tracker.GetApplied(ctx)
+	if err != nil {
+		return fmt.Errorf("getting applied migrations: %w", err)
+	}
+
+	targets, err := appliedAfterVersion(applied, target)
+	if err != nil {
+		return err
+	}
+
+	if len(targets) == 0 {
+		return ErrNothingToRollback
+	}
+
+	return e.rollbackTargets(ctx, targets, migrations)
+}
+
+// rollbackTargets executes the down SQL for each target in order.
+func (e *Executor) rollbackTargets(
+	ctx context.Context,
+	targets []tracker.AppliedMigration,
+	migrations []migration.Migration,
+) error {
+	lookup := buildMigrationLookup(migrations)
+
+	for i := range targets {
+		if err := e.rollbackOne(ctx, &targets[i], lookup); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// rollbackOne handles a single rollback: validate DownSQL exists, execute
+// it, update tracker, and fire progress.
+func (e *Executor) rollbackOne(
+	ctx context.Context,
+	applied *tracker.AppliedMigration,
+	lookup map[string]*migration.Migration,
+) error {
+	m, ok := lookup[applied.Version]
+	if !ok {
+		return fmt.Errorf("migration %s: no migration file found for rollback", applied.Version)
+	}
+
+	if m.DownSQL == "" {
+		return fmt.Errorf("migration %s (%s): %w", m.Version, m.Name, ErrNoDownSQL)
+	}
+
+	if e.dryRun {
+		e.fireProgress(ProgressEvent{Migration: m, Status: StatusSkipped})
+		return nil
+	}
+
+	e.fireProgress(ProgressEvent{Migration: m, Status: StatusRollingBack})
+
+	start := time.Now()
+	execErr := e.execDownSQL(ctx, m)
+	duration := time.Since(start)
+
+	if execErr != nil {
+		e.fireProgress(ProgressEvent{
+			Migration: m,
+			Status:    StatusFailed,
+			Duration:  duration,
+			Error:     execErr,
+		})
+
+		return fmt.Errorf("rolling back migration %s: %w", m.Version, execErr)
+	}
+
+	if err := e.tracker.RecordRolledBack(ctx, m.Version); err != nil {
+		return fmt.Errorf("recording rollback for %s: %w", m.Version, err)
+	}
+
+	e.fireProgress(ProgressEvent{
+		Migration: m,
+		Status:    StatusCompleted,
+		Duration:  duration,
+	})
+
+	return nil
+}
+
+// executeDownMigration runs the DownSQL for a migration, choosing transaction
+// mode based on whether it contains concurrent operations.
+func (e *Executor) executeDownMigration(ctx context.Context, m *migration.Migration) error {
+	concurrent, err := containsConcurrentOp(m.DownSQL)
+	if err != nil {
+		return err
+	}
+
+	if concurrent {
+		return ExecWithoutTransaction(ctx, e.pool, m.DownSQL)
+	}
+
+	return ExecInTransaction(ctx, e.pool, func(tx pgx.Tx) error {
+		if e.lockTimeout > 0 {
+			if err := SetLockTimeout(ctx, tx, e.lockTimeout); err != nil {
+				return err
+			}
+		}
+
+		if e.statementTimeout > 0 {
+			if err := SetStatementTimeout(ctx, tx, e.statementTimeout); err != nil {
+				return err
+			}
+		}
+
+		if _, err := tx.Exec(ctx, m.DownSQL); err != nil {
+			return fmt.Errorf("executing down SQL: %w", err)
+		}
+
+		return nil
+	})
 }
 
 // applyOne handles a single migration: skip if applied, dry-run check,
