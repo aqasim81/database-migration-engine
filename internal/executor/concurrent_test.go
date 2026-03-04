@@ -7,67 +7,97 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestContainsConcurrentIndex_concurrent_returnsTrue(t *testing.T) {
+func TestContainsConcurrentOp_createConcurrent_returnsTrue(t *testing.T) {
 	t.Parallel()
 
-	got, err := containsConcurrentIndex("CREATE INDEX CONCURRENTLY idx_users_email ON users (email);")
+	got, err := containsConcurrentOp("CREATE INDEX CONCURRENTLY idx_users_email ON users (email);")
 
 	require.NoError(t, err)
 	assert.True(t, got)
 }
 
-func TestContainsConcurrentIndex_regularIndex_returnsFalse(t *testing.T) {
+func TestContainsConcurrentOp_regularIndex_returnsFalse(t *testing.T) {
 	t.Parallel()
 
-	got, err := containsConcurrentIndex("CREATE INDEX idx_users_email ON users (email);")
+	got, err := containsConcurrentOp("CREATE INDEX idx_users_email ON users (email);")
 
 	require.NoError(t, err)
 	assert.False(t, got)
 }
 
-func TestContainsConcurrentIndex_noIndex_returnsFalse(t *testing.T) {
+func TestContainsConcurrentOp_noIndex_returnsFalse(t *testing.T) {
 	t.Parallel()
 
-	got, err := containsConcurrentIndex("ALTER TABLE users ADD COLUMN age INTEGER;")
+	got, err := containsConcurrentOp("ALTER TABLE users ADD COLUMN age INTEGER;")
 
 	require.NoError(t, err)
 	assert.False(t, got)
 }
 
-func TestContainsConcurrentIndex_multipleStatements_detectsConcurrent(t *testing.T) {
+func TestContainsConcurrentOp_multipleStatements_detectsConcurrent(t *testing.T) {
 	t.Parallel()
 
 	sql := `ALTER TABLE users ADD COLUMN email TEXT;
 CREATE INDEX CONCURRENTLY idx_users_email ON users (email);`
 
-	got, err := containsConcurrentIndex(sql)
+	got, err := containsConcurrentOp(sql)
 
 	require.NoError(t, err)
 	assert.True(t, got)
 }
 
-func TestContainsConcurrentIndex_emptySQL_returnsFalse(t *testing.T) {
+func TestContainsConcurrentOp_emptySQL_returnsFalse(t *testing.T) {
 	t.Parallel()
 
-	got, err := containsConcurrentIndex("")
+	got, err := containsConcurrentOp("")
 
 	require.NoError(t, err)
 	assert.False(t, got)
 }
 
-func TestContainsConcurrentIndex_invalidSQL_returnsError(t *testing.T) {
+func TestContainsConcurrentOp_invalidSQL_returnsError(t *testing.T) {
 	t.Parallel()
 
-	_, err := containsConcurrentIndex("NOT VALID SQL ;;; @@@ !!!")
+	_, err := containsConcurrentOp("NOT VALID SQL ;;; @@@ !!!")
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "parsing SQL")
 }
 
-func TestContainsConcurrentIndex_uniqueConcurrent_returnsTrue(t *testing.T) {
+func TestContainsConcurrentOp_uniqueConcurrent_returnsTrue(t *testing.T) {
 	t.Parallel()
 
-	got, err := containsConcurrentIndex("CREATE UNIQUE INDEX CONCURRENTLY idx_users_email ON users (email);")
+	got, err := containsConcurrentOp("CREATE UNIQUE INDEX CONCURRENTLY idx_users_email ON users (email);")
+
+	require.NoError(t, err)
+	assert.True(t, got)
+}
+
+func TestContainsConcurrentOp_dropConcurrent_returnsTrue(t *testing.T) {
+	t.Parallel()
+
+	got, err := containsConcurrentOp("DROP INDEX CONCURRENTLY IF EXISTS idx_users_email;")
+
+	require.NoError(t, err)
+	assert.True(t, got)
+}
+
+func TestContainsConcurrentOp_dropRegular_returnsFalse(t *testing.T) {
+	t.Parallel()
+
+	got, err := containsConcurrentOp("DROP INDEX idx_users_email;")
+
+	require.NoError(t, err)
+	assert.False(t, got)
+}
+
+func TestContainsConcurrentOp_dropConcurrentMultiple_returnsTrue(t *testing.T) {
+	t.Parallel()
+
+	sql := `ALTER TABLE users DROP COLUMN email;
+DROP INDEX CONCURRENTLY IF EXISTS idx_users_status;`
+
+	got, err := containsConcurrentOp(sql)
 
 	require.NoError(t, err)
 	assert.True(t, got)

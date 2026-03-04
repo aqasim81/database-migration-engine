@@ -230,7 +230,7 @@ func (e *Executor) shouldSkip(ctx context.Context, m *migration.Migration) (bool
 // transactional and non-transactional execution based on whether the
 // migration contains CREATE INDEX CONCURRENTLY.
 func (e *Executor) executeMigration(ctx context.Context, m *migration.Migration) error {
-	concurrent, err := containsConcurrentIndex(m.UpSQL)
+	concurrent, err := containsConcurrentOp(m.UpSQL)
 	if err != nil {
 		return err
 	}
