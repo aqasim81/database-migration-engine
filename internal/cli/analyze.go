@@ -3,6 +3,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"io"
 
 	"github.com/spf13/cobra"
 
@@ -57,7 +58,10 @@ func runAnalyze(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("analyzing migrations: %w", err)
 	}
 
-	hasHighOrCritical := printAnalysisResults(cmd, results)
+	hasHighOrCritical, err := outputAnalysisResults(cmd, results)
+	if err != nil {
+		return err
+	}
 
 	failOnHigh, _ := cmd.Flags().GetBool("fail-on-high")
 	if failOnHigh && hasHighOrCritical {
@@ -67,8 +71,20 @@ func runAnalyze(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func printAnalysisResults(cmd *cobra.Command, results []analyzer.AnalysisResult) bool {
-	out := cmd.OutOrStdout()
+func outputAnalysisResults(cmd *cobra.Command, results []analyzer.AnalysisResult) (bool, error) {
+	format := getFormat(cmd)
+
+	switch format {
+	case FormatJSON:
+		return printAnalysisJSON(cmd.OutOrStdout(), results)
+	case FormatGitHubActions:
+		return printAnalysisGitHub(cmd.OutOrStdout(), results), nil
+	default:
+		return printAnalysisText(cmd.OutOrStdout(), results), nil
+	}
+}
+
+func printAnalysisText(out io.Writer, results []analyzer.AnalysisResult) bool {
 	totalFindings := 0
 	hasHighOrCritical := false
 
@@ -80,7 +96,7 @@ func printAnalysisResults(cmd *cobra.Command, results []analyzer.AnalysisResult)
 		fmt.Fprintf(out, "\n=== %s_%s ===\n", r.Migration.Version, r.Migration.Name)
 
 		for _, f := range r.Findings {
-			fmt.Fprintf(out, "  [%s] %s\n", f.Severity, f.Message)
+			fmt.Fprintf(out, "  [%s] %s\n", colorSeverity(f.Severity), f.Message)
 			fmt.Fprintf(out, "    Table: %s\n", f.Table)
 			fmt.Fprintf(out, "    Rule:  %s\n", f.Rule)
 
@@ -105,6 +121,61 @@ func printAnalysisResults(cmd *cobra.Command, results []analyzer.AnalysisResult)
 	}
 
 	return hasHighOrCritical
+}
+
+func printAnalysisJSON(out io.Writer, results []analyzer.AnalysisResult) (bool, error) {
+	output := AnalyzeJSONOutput{}
+
+	for _, r := range results {
+		m := AnalyzeJSONMigration{
+			Version:  r.Migration.Version,
+			Name:     r.Migration.Name,
+			FilePath: r.Migration.FilePath,
+			Findings: make([]AnalyzeJSONFinding, 0, len(r.Findings)),
+		}
+
+		for _, f := range r.Findings {
+			m.Findings = append(m.Findings, AnalyzeJSONFinding{
+				Rule:       f.Rule,
+				Severity:   f.Severity.String(),
+				Table:      f.Table,
+				Message:    f.Message,
+				Suggestion: f.Suggestion,
+				Statement:  f.Statement,
+				LockType:   f.LockType,
+			})
+		}
+
+		output.Migrations = append(output.Migrations, m)
+		output.TotalFindings += len(r.Findings)
+
+		if r.HasHighOrCritical() {
+			output.HasHighOrCrit = true
+		}
+	}
+
+	return output.HasHighOrCrit, printJSON(out, output)
+}
+
+func printAnalysisGitHub(out io.Writer, results []analyzer.AnalysisResult) bool {
+	hasHighOrCritical := false
+
+	for _, r := range results {
+		for i := range r.Findings {
+			fmt.Fprintln(out, formatGitHubAnnotation(r.Migration.FilePath, &r.Findings[i]))
+		}
+
+		if r.HasHighOrCritical() {
+			hasHighOrCritical = true
+		}
+	}
+
+	return hasHighOrCritical
+}
+
+// printAnalysisResults is the legacy text printer used by apply's safety check.
+func printAnalysisResults(cmd *cobra.Command, results []analyzer.AnalysisResult) bool {
+	return printAnalysisText(cmd.OutOrStdout(), results)
 }
 
 func countMigrationsWithFindings(results []analyzer.AnalysisResult) int {

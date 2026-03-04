@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"encoding/json"
 	"path/filepath"
 	"testing"
 
@@ -36,6 +37,7 @@ func newAnalyzeCmd(t *testing.T) (*cobra.Command, *bytes.Buffer) {
 		Use:  "analyze [migration-dir]",
 		RunE: runAnalyze,
 	}
+	cmd.Flags().String("format", "text", "output format")
 	cmd.Flags().Bool("fail-on-high", false, "exit with non-zero code if high/critical findings exist")
 	cmd.SetOut(buf)
 	cmd.SetErr(buf)
@@ -242,4 +244,139 @@ func TestRunAnalyze_usesConfigDir_whenNoArgs(t *testing.T) { // not parallel: mu
 	err := cmd.Execute()
 	require.NoError(t, err)
 	assert.Contains(t, buf.String(), "finding(s)")
+}
+
+func TestPrintAnalysisJSON_validStructure(t *testing.T) {
+	t.Parallel()
+
+	results := []analyzer.AnalysisResult{
+		{
+			Migration:   &migration.Migration{Version: "001", Name: "dangerous", FilePath: "001.up.sql"},
+			MaxSeverity: analyzer.High,
+			Findings: []analyzer.Finding{
+				{
+					Rule:       "create-index-not-concurrent",
+					Severity:   analyzer.High,
+					Table:      "users",
+					Message:    "Index creation locks table",
+					Suggestion: "Use CREATE INDEX CONCURRENTLY",
+					LockType:   "SHARE",
+				},
+			},
+		},
+		{
+			Migration: &migration.Migration{Version: "002", Name: "safe"},
+		},
+	}
+
+	buf := new(bytes.Buffer)
+	hasHigh, err := printAnalysisJSON(buf, results)
+
+	require.NoError(t, err)
+	assert.True(t, hasHigh)
+
+	var output AnalyzeJSONOutput
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &output))
+
+	assert.Len(t, output.Migrations, 2)
+	assert.Equal(t, 1, output.TotalFindings)
+	assert.True(t, output.HasHighOrCrit)
+	assert.Equal(t, "001", output.Migrations[0].Version)
+	assert.Len(t, output.Migrations[0].Findings, 1)
+	assert.Equal(t, "HIGH", output.Migrations[0].Findings[0].Severity)
+	assert.Equal(t, "SHARE", output.Migrations[0].Findings[0].LockType)
+}
+
+func TestPrintAnalysisJSON_noFindings(t *testing.T) {
+	t.Parallel()
+
+	results := []analyzer.AnalysisResult{
+		{Migration: &migration.Migration{Version: "001", Name: "safe"}},
+	}
+
+	buf := new(bytes.Buffer)
+	hasHigh, err := printAnalysisJSON(buf, results)
+
+	require.NoError(t, err)
+	assert.False(t, hasHigh)
+
+	var output AnalyzeJSONOutput
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &output))
+
+	assert.Equal(t, 0, output.TotalFindings)
+	assert.False(t, output.HasHighOrCrit)
+}
+
+func TestPrintAnalysisGitHub_formatsAnnotations(t *testing.T) {
+	t.Parallel()
+
+	results := []analyzer.AnalysisResult{
+		{
+			Migration:   &migration.Migration{Version: "001", Name: "dangerous", FilePath: "migrations/001.up.sql"},
+			MaxSeverity: analyzer.High,
+			Findings: []analyzer.Finding{
+				{Severity: analyzer.High, Message: "Index locks table"},
+			},
+		},
+		{
+			Migration:   &migration.Migration{Version: "002", Name: "mild", FilePath: "migrations/002.up.sql"},
+			MaxSeverity: analyzer.Low,
+			Findings: []analyzer.Finding{
+				{Severity: analyzer.Low, Message: "Minor concern"},
+			},
+		},
+	}
+
+	buf := new(bytes.Buffer)
+	hasHigh := printAnalysisGitHub(buf, results)
+
+	assert.True(t, hasHigh)
+
+	output := buf.String()
+	assert.Contains(t, output, "::error file=migrations/001.up.sql::[HIGH] Index locks table")
+	assert.Contains(t, output, "::warning file=migrations/002.up.sql::[LOW] Minor concern")
+}
+
+func TestPrintAnalysisGitHub_noFindings(t *testing.T) {
+	t.Parallel()
+
+	results := []analyzer.AnalysisResult{
+		{Migration: &migration.Migration{Version: "001", Name: "safe"}},
+	}
+
+	buf := new(bytes.Buffer)
+	hasHigh := printAnalysisGitHub(buf, results)
+
+	assert.False(t, hasHigh)
+	assert.Empty(t, buf.String())
+}
+
+func TestRunAnalyze_jsonFormat(t *testing.T) { // not parallel: mutates global AppConfig
+	dir := filepath.Join("testdata", "migrations")
+	setupTestConfig(t, dir)
+
+	cmd, buf := newAnalyzeCmd(t)
+	cmd.SetArgs([]string{"--format", "json", dir})
+
+	err := cmd.Execute()
+	require.NoError(t, err)
+
+	var output AnalyzeJSONOutput
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &output))
+
+	assert.NotEmpty(t, output.Migrations)
+}
+
+func TestRunAnalyze_githubActionsFormat(t *testing.T) { // not parallel: mutates global AppConfig
+	dir := filepath.Join("testdata", "migrations")
+	setupTestConfig(t, dir)
+
+	cmd, buf := newAnalyzeCmd(t)
+	cmd.SetArgs([]string{"--format", "github-actions", dir})
+
+	err := cmd.Execute()
+	require.NoError(t, err)
+
+	output := buf.String()
+	assert.Contains(t, output, "::")
 }
