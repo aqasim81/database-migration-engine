@@ -16,10 +16,11 @@ import (
 
 // Progress status constants reported via ProgressEvent.
 const (
-	StatusStarting  = "starting"
-	StatusCompleted = "completed"
-	StatusFailed    = "failed"
-	StatusSkipped   = "skipped"
+	StatusStarting    = "starting"
+	StatusCompleted   = "completed"
+	StatusFailed      = "failed"
+	StatusSkipped     = "skipped"
+	StatusRollingBack = "rolling_back"
 )
 
 // ProgressEvent is emitted by the executor for each migration processed.
@@ -36,6 +37,8 @@ type MigrationTracker interface {
 	IsApplied(ctx context.Context, version string) (bool, error)
 	GetChecksum(ctx context.Context, version string) (string, error)
 	RecordApplied(ctx context.Context, p tracker.RecordParams) error
+	GetApplied(ctx context.Context) ([]tracker.AppliedMigration, error)
+	RecordRolledBack(ctx context.Context, version string) error
 }
 
 // lockReleaser is returned by lockFn and must be released when done.
@@ -134,16 +137,17 @@ func (e *Executor) Apply(ctx context.Context, migrations []migration.Migration) 
 	return nil
 }
 
-// Rollback reverses the most recent `steps` applied migrations.
-// Not yet implemented — will be completed in Phase 6.
-func (e *Executor) Rollback(_ context.Context, _ int) error {
-	return ErrRollbackNotImplemented
+// Rollback reverses the most recent `steps` applied migrations using their
+// down migration files. The caller must provide all known migrations so
+// their DownSQL can be looked up by version.
+func (e *Executor) Rollback(_ context.Context, _ []migration.Migration, _ int) error {
+	return nil // implementation follows in next commit
 }
 
-// RollbackToVersion reverses all migrations applied after the target version.
-// Not yet implemented — will be completed in Phase 6.
-func (e *Executor) RollbackToVersion(_ context.Context, _ string) error {
-	return ErrRollbackNotImplemented
+// RollbackToVersion reverses all applied migrations with versions greater
+// than the target version. The target version itself is NOT rolled back.
+func (e *Executor) RollbackToVersion(_ context.Context, _ []migration.Migration, _ string) error {
+	return nil // implementation follows in next commit
 }
 
 // applyOne handles a single migration: skip if applied, dry-run check,

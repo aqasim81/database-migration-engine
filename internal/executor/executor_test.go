@@ -62,24 +62,7 @@ func TestStatusConstants(t *testing.T) {
 	assert.Equal(t, "completed", executor.StatusCompleted)
 	assert.Equal(t, "failed", executor.StatusFailed)
 	assert.Equal(t, "skipped", executor.StatusSkipped)
-}
-
-func TestRollback_returnsNotImplemented(t *testing.T) {
-	t.Parallel()
-
-	exec := executor.New(nil, nil)
-
-	err := exec.Rollback(nil, 1) //nolint:staticcheck // nil context acceptable in test
-	assert.ErrorIs(t, err, executor.ErrRollbackNotImplemented)
-}
-
-func TestRollbackToVersion_returnsNotImplemented(t *testing.T) {
-	t.Parallel()
-
-	exec := executor.New(nil, nil)
-
-	err := exec.RollbackToVersion(nil, "001") //nolint:staticcheck // nil context acceptable in test
-	assert.ErrorIs(t, err, executor.ErrRollbackNotImplemented)
+	assert.Equal(t, "rolling_back", executor.StatusRollingBack)
 }
 
 func TestErrors_sentinel(t *testing.T) {
@@ -90,8 +73,18 @@ func TestErrors_sentinel(t *testing.T) {
 		assert.EqualError(t, executor.ErrExecutionFailed, "migration execution failed")
 	})
 
-	t.Run("ErrRollbackNotImplemented", func(t *testing.T) {
+	t.Run("ErrNoDownSQL", func(t *testing.T) {
 		t.Parallel()
-		assert.EqualError(t, executor.ErrRollbackNotImplemented, "rollback not yet implemented")
+		assert.EqualError(t, executor.ErrNoDownSQL, "no down migration file")
+	})
+
+	t.Run("ErrNothingToRollback", func(t *testing.T) {
+		t.Parallel()
+		assert.EqualError(t, executor.ErrNothingToRollback, "no applied migrations to roll back")
+	})
+
+	t.Run("ErrTargetNotFound", func(t *testing.T) {
+		t.Parallel()
+		assert.EqualError(t, executor.ErrTargetNotFound, "target version not found in applied migrations")
 	})
 }

@@ -24,13 +24,17 @@ func (m *mockLock) Release(_ context.Context) error {
 
 // mockTracker implements MigrationTracker for testing.
 type mockTracker struct {
-	ensureErr    error
-	applied      map[string]bool
-	checksums    map[string]string
-	recorded     []tracker.RecordParams
-	isAppliedErr error
-	checksumErr  error
-	recordErr    error
+	ensureErr     error
+	applied       map[string]bool
+	checksums     map[string]string
+	recorded      []tracker.RecordParams
+	isAppliedErr  error
+	checksumErr   error
+	recordErr     error
+	appliedList   []tracker.AppliedMigration
+	getAppliedErr error
+	rolledBack    []string
+	rollbackErr   error
 }
 
 func newMockTracker() *mockTracker {
@@ -73,6 +77,25 @@ func (m *mockTracker) RecordApplied(_ context.Context, p tracker.RecordParams) e
 	m.recorded = append(m.recorded, p)
 	m.applied[p.Version] = true
 	m.checksums[p.Version] = p.Checksum
+
+	return nil
+}
+
+func (m *mockTracker) GetApplied(_ context.Context) ([]tracker.AppliedMigration, error) {
+	if m.getAppliedErr != nil {
+		return nil, m.getAppliedErr
+	}
+
+	return m.appliedList, nil
+}
+
+func (m *mockTracker) RecordRolledBack(_ context.Context, version string) error {
+	if m.rollbackErr != nil {
+		return m.rollbackErr
+	}
+
+	m.rolledBack = append(m.rolledBack, version)
+	m.applied[version] = false
 
 	return nil
 }
