@@ -4,7 +4,7 @@
 
 Zero-downtime PostgreSQL schema migration CLI. Parses SQL with the real PG parser, detects dangerous DDL operations, suggests safe alternatives, executes with rollback capability.
 
-**Status:** Phase 8 complete — polish, output formats, status command (lipgloss colored severity output, `--format json/github-actions` on analyze/plan/status, status command with applied/pending/checksum mismatch cross-reference, interactive confirmation prompt on HIGH/CRITICAL risks in apply). Next: Phase 9 (Documentation + Release Configuration).
+**Status:** All phases complete (0-9). v0.1.0 — fully functional CLI with 9 detection rules, zero-downtime execution, rollback support, JSON/GitHub Actions output, GoReleaser release config.
 
 ## Stack
 

@@ -143,11 +143,11 @@ Each phase follows a structured workflow: plan → review → implement → revi
 
 > **Plan file:** [`plans/phases/phase-9-documentation-release-configuration.md`](phases/phase-9-documentation-release-configuration.md)
 
-- [ ] **Plan** — Read phase plan, understand scope and deliverables
-- [ ] **Review the plan** — Verify approach, clarify any ambiguities
-- [ ] **Implement** — README, GoReleaser config, GitHub Actions CI
-- [ ] **Review the implementation** — Code review, check against plan requirements
-- [ ] **Test** — Verify README renders, CI passes, all verification checklist items pass
-- [ ] **Fix** — Address any issues found during review or testing
-- [ ] **Update checklist** — Mark items complete
-- [ ] **Done** — Project complete!
+- [x] **Plan** — Read phase plan, understand scope and deliverables
+- [x] **Review the plan** — Verify approach, clarify any ambiguities
+- [x] **Implement** — README, GoReleaser config, GitHub Actions CI
+- [x] **Review the implementation** — Code review, check against plan requirements
+- [x] **Test** — Verify README renders, CI passes, all verification checklist items pass
+- [x] **Fix** — Address any issues found during review or testing
+- [x] **Update checklist** — Mark items complete
+- [x] **Done** — Project complete!
