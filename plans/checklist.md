@@ -113,14 +113,14 @@ Each phase follows a structured workflow: plan → review → implement → revi
 
 > **Plan file:** [`plans/phases/phase-7-planner-impact-estimation.md`](phases/phase-7-planner-impact-estimation.md)
 
-- [ ] **Plan** — Read phase plan, understand scope and deliverables
-- [ ] **Review the plan** — Verify approach, clarify any ambiguities
-- [ ] **Implement** — Impact estimation, planner, wire plan command
-- [ ] **Review the implementation** — Code review, check against plan requirements
-- [ ] **Test** — Run `make test` — planner tests pass
-- [ ] **Fix** — Address any issues found during review or testing
-- [ ] **Update checklist** — Mark items complete
-- [ ] **Next** — Proceed to Phase 8
+- [x] **Plan** — Read phase plan, understand scope and deliverables
+- [x] **Review the plan** — Verify approach, clarify any ambiguities
+- [x] **Implement** — Impact estimation, planner, wire plan command
+- [x] **Review the implementation** — Code review, check against plan requirements
+- [x] **Test** — Run `make test` — planner tests pass
+- [x] **Fix** — Address any issues found during review or testing
+- [x] **Update checklist** — Mark items complete
+- [x] **Next** — Proceed to Phase 8
 
 ---
 
