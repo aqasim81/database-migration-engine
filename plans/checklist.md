@@ -128,14 +128,14 @@ Each phase follows a structured workflow: plan → review → implement → revi
 
 > **Plan file:** [`plans/phases/phase-8-polish-output-status-ci-formats.md`](phases/phase-8-polish-output-status-ci-formats.md)
 
-- [ ] **Plan** — Read phase plan, understand scope and deliverables
-- [ ] **Review the plan** — Verify approach, clarify any ambiguities
-- [ ] **Implement** — Lipgloss output formatting, status command, confirmation prompts, JSON/GitHub Actions formats
-- [ ] **Review the implementation** — Code review, check against plan requirements
-- [ ] **Test** — Run `make test` and manually verify colored output, JSON output, status table
-- [ ] **Fix** — Address any issues found during review or testing
-- [ ] **Update checklist** — Mark items complete
-- [ ] **Next** — Proceed to Phase 9
+- [x] **Plan** — Read phase plan, understand scope and deliverables
+- [x] **Review the plan** — Verify approach, clarify any ambiguities
+- [x] **Implement** — Lipgloss output formatting, status command, confirmation prompts, JSON/GitHub Actions formats
+- [x] **Review the implementation** — Code review, check against plan requirements
+- [x] **Test** — Run `make test` and manually verify colored output, JSON output, status table
+- [x] **Fix** — Address any issues found during review or testing
+- [x] **Update checklist** — Mark items complete
+- [x] **Next** — Proceed to Phase 9
 
 ---
 

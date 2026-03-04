@@ -4,7 +4,7 @@
 
 Zero-downtime PostgreSQL schema migration CLI. Parses SQL with the real PG parser, detects dangerous DDL operations, suggests safe alternatives, executes with rollback capability.
 
-**Status:** Phase 7 complete — planner + impact estimation (heuristic-based lock duration estimates for all 9 rules, BuildPlan with applied status and optional table size enrichment, PendingOnly filter, formatted table output in plan command). Next: Phase 8 (Polish — Output, Status, CI Formats).
+**Status:** Phase 8 complete — polish, output formats, status command (lipgloss colored severity output, `--format json/github-actions` on analyze/plan/status, status command with applied/pending/checksum mismatch cross-reference, interactive confirmation prompt on HIGH/CRITICAL risks in apply). Next: Phase 9 (Documentation + Release Configuration).
 
 ## Stack
 
