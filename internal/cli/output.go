@@ -18,6 +18,13 @@ const (
 	FormatGitHubActions = "github-actions"
 )
 
+// Migration status labels used across status output.
+const (
+	statusApplied  = "applied"
+	statusPending  = "pending"
+	statusMismatch = "mismatch"
+)
+
 // Lipgloss severity styles.
 var ( //nolint:gochecknoglobals // constant style definitions
 	styleSafe     = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))            // green
@@ -51,11 +58,11 @@ func colorSeverity(s analyzer.Severity) string {
 // colorStatus returns a styled status label.
 func colorStatus(status string) string {
 	switch status {
-	case "applied":
+	case statusApplied:
 		return styleSafe.Render(status)
-	case "pending":
+	case statusPending:
 		return styleWarning.Render(status)
-	case "mismatch":
+	case statusMismatch:
 		return styleCritical.Render(status)
 	default:
 		return status

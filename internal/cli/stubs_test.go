@@ -23,18 +23,6 @@ func TestRunApply_noDatabaseURL_returnsError(t *testing.T) { //nolint:parallelte
 	assert.ErrorIs(t, err, errDatabaseURLRequired)
 }
 
-func TestRunStatus_printsNotImplemented(t *testing.T) {
-	t.Parallel()
-
-	buf := new(bytes.Buffer)
-	cmd := &cobra.Command{}
-	cmd.SetOut(buf)
-
-	err := runStatus(cmd, nil)
-	require.NoError(t, err)
-	assert.Contains(t, buf.String(), "status: not yet implemented")
-}
-
 func TestRunRollback_noDatabaseURL_returnsError(t *testing.T) { //nolint:paralleltest // writes global AppConfig
 	AppConfig = &config.Config{MigrationsDir: "./testdata/migrations"}
 

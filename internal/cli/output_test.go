@@ -57,44 +57,38 @@ func TestColorStatus_allStatuses(t *testing.T) {
 	}
 }
 
-func TestGetFormat_fromFlag(t *testing.T) {
-	t.Parallel()
+func TestGetFormat_fromFlag(t *testing.T) { //nolint:paralleltest // writes global AppConfig
+	old := AppConfig
+	AppConfig = &config.Config{Format: "text"}
+
+	t.Cleanup(func() { AppConfig = old })
 
 	cmd := &cobra.Command{}
 	cmd.Flags().String("format", "text", "")
 	require.NoError(t, cmd.Flags().Set("format", "json"))
 
-	old := AppConfig
-	AppConfig = &config.Config{Format: "text"}
-
-	t.Cleanup(func() { AppConfig = old })
-
 	assert.Equal(t, "json", getFormat(cmd))
 }
 
-func TestGetFormat_fallsBackToConfig(t *testing.T) {
-	t.Parallel()
-
-	cmd := &cobra.Command{}
-
+func TestGetFormat_fallsBackToConfig(t *testing.T) { //nolint:paralleltest // writes global AppConfig
 	old := AppConfig
 	AppConfig = &config.Config{Format: "json"}
 
 	t.Cleanup(func() { AppConfig = old })
 
+	cmd := &cobra.Command{}
+
 	assert.Equal(t, "json", getFormat(cmd))
 }
 
-func TestGetFormat_defaultText(t *testing.T) {
-	t.Parallel()
-
-	cmd := &cobra.Command{}
-	cmd.Flags().String("format", "", "")
-
+func TestGetFormat_defaultText(t *testing.T) { //nolint:paralleltest // writes global AppConfig
 	old := AppConfig
 	AppConfig = &config.Config{Format: "text"}
 
 	t.Cleanup(func() { AppConfig = old })
+
+	cmd := &cobra.Command{}
+	cmd.Flags().String("format", "", "")
 
 	assert.Equal(t, "text", getFormat(cmd))
 }
