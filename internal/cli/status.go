@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/aqasim81/database-migration-engine/internal/analyzer"
 	"github.com/aqasim81/database-migration-engine/internal/migration"
 	"github.com/aqasim81/database-migration-engine/internal/tracker"
 )
@@ -153,7 +154,7 @@ func printStatusText(out io.Writer, entries []statusEntry) {
 
 		fmt.Fprintf(out, "%-10s %-22s %-12s %-22s %s\n",
 			e.Version,
-			truncateName(e.Name, 22), //nolint:mnd // column width
+			analyzer.TruncateSQL(e.Name, 22), //nolint:mnd // column width
 			colorStatus(e.Status),
 			appliedAt,
 			duration,
@@ -238,12 +239,4 @@ func formatDurationMs(ms int) string {
 	}
 
 	return fmt.Sprintf("%.1fs", float64(ms)/1000) //nolint:mnd // convert ms to seconds
-}
-
-func truncateName(name string, maxLen int) string {
-	if len(name) <= maxLen {
-		return name
-	}
-
-	return name[:maxLen-3] + "..."
 }

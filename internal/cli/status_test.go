@@ -169,15 +169,10 @@ func TestFormatDurationMs(t *testing.T) {
 	}
 }
 
-func TestTruncateName(t *testing.T) {
-	t.Parallel()
-
-	assert.Equal(t, "short", truncateName("short", 22))
-	assert.Equal(t, "a_very_long_migrati...", truncateName("a_very_long_migration_name_here", 22))
-}
-
 func TestRunStatus_noDatabaseURL_returnsError(t *testing.T) { //nolint:paralleltest // writes global AppConfig
+	old := AppConfig
 	AppConfig = &config.Config{MigrationsDir: "./testdata/migrations"}
+	t.Cleanup(func() { AppConfig = old })
 
 	buf := new(bytes.Buffer)
 	cmd := &cobra.Command{}

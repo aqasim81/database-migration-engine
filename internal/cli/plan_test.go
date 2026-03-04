@@ -16,10 +16,12 @@ import (
 )
 
 func TestRunPlan_withTestdata(t *testing.T) { //nolint:paralleltest // writes global AppConfig
+	old := AppConfig
 	AppConfig = &config.Config{
 		MigrationsDir:   "./testdata/migrations",
 		TargetPGVersion: 14,
 	}
+	t.Cleanup(func() { AppConfig = old })
 
 	buf := new(bytes.Buffer)
 	cmd := &cobra.Command{}
@@ -35,10 +37,12 @@ func TestRunPlan_withTestdata(t *testing.T) { //nolint:paralleltest // writes gl
 }
 
 func TestRunPlan_emptyDir(t *testing.T) { //nolint:paralleltest // writes global AppConfig
+	old := AppConfig
 	AppConfig = &config.Config{
 		MigrationsDir:   t.TempDir(),
 		TargetPGVersion: 14,
 	}
+	t.Cleanup(func() { AppConfig = old })
 
 	buf := new(bytes.Buffer)
 	cmd := &cobra.Command{}
@@ -50,10 +54,12 @@ func TestRunPlan_emptyDir(t *testing.T) { //nolint:paralleltest // writes global
 }
 
 func TestRunPlan_invalidDir(t *testing.T) { //nolint:paralleltest // writes global AppConfig
+	old := AppConfig
 	AppConfig = &config.Config{
 		MigrationsDir:   "/nonexistent/path",
 		TargetPGVersion: 14,
 	}
+	t.Cleanup(func() { AppConfig = old })
 
 	buf := new(bytes.Buffer)
 	cmd := &cobra.Command{}
@@ -65,10 +71,12 @@ func TestRunPlan_invalidDir(t *testing.T) { //nolint:paralleltest // writes glob
 }
 
 func TestRunPlan_pendingOnly(t *testing.T) { //nolint:paralleltest // writes global AppConfig
+	old := AppConfig
 	AppConfig = &config.Config{
 		MigrationsDir:   "./testdata/migrations",
 		TargetPGVersion: 14,
 	}
+	t.Cleanup(func() { AppConfig = old })
 
 	buf := new(bytes.Buffer)
 	cmd := &cobra.Command{}
@@ -251,10 +259,12 @@ func TestPrintPlanJSON_validStructure(t *testing.T) {
 }
 
 func TestRunPlan_jsonFormat(t *testing.T) { //nolint:paralleltest // writes global AppConfig
+	old := AppConfig
 	AppConfig = &config.Config{
 		MigrationsDir:   "./testdata/migrations",
 		TargetPGVersion: 14,
 	}
+	t.Cleanup(func() { AppConfig = old })
 
 	buf := new(bytes.Buffer)
 	cmd := &cobra.Command{}

@@ -8,7 +8,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/aqasim81/database-migration-engine/internal/analyzer"
-	"github.com/aqasim81/database-migration-engine/internal/analyzer/rules"
 	"github.com/aqasim81/database-migration-engine/internal/config"
 	"github.com/aqasim81/database-migration-engine/internal/planner"
 	"github.com/aqasim81/database-migration-engine/internal/tracker"
@@ -36,10 +35,7 @@ func runPlan(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	a := analyzer.New(
-		analyzer.WithRegistry(rules.NewDefaultRegistry()),
-		analyzer.WithPGVersion(cfg.TargetPGVersion),
-	)
+	a := newDefaultAnalyzer(cfg.TargetPGVersion)
 
 	results, err := a.AnalyzeAll(sorted)
 	if err != nil {
@@ -152,7 +148,7 @@ func printPlan(out io.Writer, plan *planner.Plan) {
 
 	for i, step := range plan.Steps {
 		risk, estLock := stepRiskAndLock(&step)
-		if step.Status == planner.StatusPending && len(step.Findings) > 0 {
+		if risk != "-" {
 			risk = colorSeverity(step.MaxSeverity())
 		}
 
@@ -190,16 +186,8 @@ func printPlanJSON(out io.Writer, plan *planner.Plan) error {
 			RunInTx:       step.RunInTx,
 		}
 
-		for _, f := range step.Findings {
-			s.Findings = append(s.Findings, AnalyzeJSONFinding{
-				Rule:       f.Rule,
-				Severity:   f.Severity.String(),
-				Table:      f.Table,
-				Message:    f.Message,
-				Suggestion: f.Suggestion,
-				Statement:  f.Statement,
-				LockType:   f.LockType,
-			})
+		for i := range step.Findings {
+			s.Findings = append(s.Findings, findingToJSON(&step.Findings[i]))
 		}
 
 		output.Steps = append(output.Steps, s)

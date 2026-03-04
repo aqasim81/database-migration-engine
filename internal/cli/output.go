@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/aqasim81/database-migration-engine/internal/analyzer"
+	"github.com/aqasim81/database-migration-engine/internal/analyzer/rules"
 )
 
 // Output format constants.
@@ -155,6 +156,27 @@ type StatusJSONMigration struct {
 	AppliedAt     string `json:"applied_at,omitempty"`
 	DurationMs    int    `json:"duration_ms,omitempty"`
 	ChecksumMatch *bool  `json:"checksum_match,omitempty"`
+}
+
+// newDefaultAnalyzer creates an analyzer with the default rule registry and the given PG version.
+func newDefaultAnalyzer(pgVersion int) *analyzer.Analyzer {
+	return analyzer.New(
+		analyzer.WithRegistry(rules.NewDefaultRegistry()),
+		analyzer.WithPGVersion(pgVersion),
+	)
+}
+
+// findingToJSON converts an analyzer.Finding to its JSON output representation.
+func findingToJSON(f *analyzer.Finding) AnalyzeJSONFinding {
+	return AnalyzeJSONFinding{
+		Rule:       f.Rule,
+		Severity:   f.Severity.String(),
+		Table:      f.Table,
+		Message:    f.Message,
+		Suggestion: f.Suggestion,
+		Statement:  f.Statement,
+		LockType:   f.LockType,
+	}
 }
 
 // formatGitHubAnnotation formats a finding as a GitHub Actions annotation.

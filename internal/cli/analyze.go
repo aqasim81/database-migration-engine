@@ -8,7 +8,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/aqasim81/database-migration-engine/internal/analyzer"
-	"github.com/aqasim81/database-migration-engine/internal/analyzer/rules"
 	"github.com/aqasim81/database-migration-engine/internal/migration"
 )
 
@@ -48,10 +47,7 @@ func runAnalyze(cmd *cobra.Command, args []string) error {
 
 	sorted := migration.Sort(migrations)
 
-	a := analyzer.New(
-		analyzer.WithRegistry(rules.NewDefaultRegistry()),
-		analyzer.WithPGVersion(AppConfig.TargetPGVersion),
-	)
+	a := newDefaultAnalyzer(AppConfig.TargetPGVersion)
 
 	results, err := a.AnalyzeAll(sorted)
 	if err != nil {
@@ -124,7 +120,9 @@ func printAnalysisText(out io.Writer, results []analyzer.AnalysisResult) bool {
 }
 
 func printAnalysisJSON(out io.Writer, results []analyzer.AnalysisResult) (bool, error) {
-	output := AnalyzeJSONOutput{}
+	output := AnalyzeJSONOutput{
+		Migrations: make([]AnalyzeJSONMigration, 0, len(results)),
+	}
 
 	for _, r := range results {
 		m := AnalyzeJSONMigration{
@@ -134,16 +132,8 @@ func printAnalysisJSON(out io.Writer, results []analyzer.AnalysisResult) (bool, 
 			Findings: make([]AnalyzeJSONFinding, 0, len(r.Findings)),
 		}
 
-		for _, f := range r.Findings {
-			m.Findings = append(m.Findings, AnalyzeJSONFinding{
-				Rule:       f.Rule,
-				Severity:   f.Severity.String(),
-				Table:      f.Table,
-				Message:    f.Message,
-				Suggestion: f.Suggestion,
-				Statement:  f.Statement,
-				LockType:   f.LockType,
-			})
+		for i := range r.Findings {
+			m.Findings = append(m.Findings, findingToJSON(&r.Findings[i]))
 		}
 
 		output.Migrations = append(output.Migrations, m)

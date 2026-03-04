@@ -12,8 +12,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/spf13/cobra"
 
-	"github.com/aqasim81/database-migration-engine/internal/analyzer"
-	"github.com/aqasim81/database-migration-engine/internal/analyzer/rules"
 	"github.com/aqasim81/database-migration-engine/internal/config"
 	"github.com/aqasim81/database-migration-engine/internal/database"
 	"github.com/aqasim81/database-migration-engine/internal/executor"
@@ -180,10 +178,7 @@ func executeMigrations(
 // checkDangerousMigrations runs the analyzer and, if HIGH/CRITICAL findings
 // are found, prompts the user for confirmation via stdin.
 func checkDangerousMigrations(cmd *cobra.Command, sorted []migration.Migration, cfg *config.Config) (bool, error) {
-	a := analyzer.New(
-		analyzer.WithRegistry(rules.NewDefaultRegistry()),
-		analyzer.WithPGVersion(cfg.TargetPGVersion),
-	)
+	a := newDefaultAnalyzer(cfg.TargetPGVersion)
 
 	results, err := a.AnalyzeAll(sorted)
 	if err != nil {
