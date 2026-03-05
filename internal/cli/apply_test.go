@@ -125,12 +125,10 @@ func TestCheckDangerousMigrations_dangerousSQL_confirmedNo_blocked(t *testing.T)
 // Tests below write to the global AppConfig — they must NOT be parallel.
 
 func TestRunApply_noMigrations_printsMessage(t *testing.T) { //nolint:paralleltest // writes global AppConfig
-	old := AppConfig
-	AppConfig = &config.Config{
+	setTestAppConfig(t, &config.Config{
 		DatabaseURL:   "postgres://test:test@localhost/test",
 		MigrationsDir: t.TempDir(),
-	}
-	t.Cleanup(func() { AppConfig = old })
+	})
 
 	buf := new(bytes.Buffer)
 	cmd := &cobra.Command{}
@@ -143,15 +141,13 @@ func TestRunApply_noMigrations_printsMessage(t *testing.T) { //nolint:parallelte
 }
 
 func TestRunApply_dangerousMigrations_blocked(t *testing.T) { //nolint:paralleltest // writes global AppConfig
-	old := AppConfig
-	AppConfig = &config.Config{
+	setTestAppConfig(t, &config.Config{
 		DatabaseURL:      "postgres://test:test@localhost/test",
 		MigrationsDir:    "./testdata/migrations",
 		TargetPGVersion:  14,
 		LockTimeout:      5000000000,
 		StatementTimeout: 30000000000,
-	}
-	t.Cleanup(func() { AppConfig = old })
+	})
 
 	buf := new(bytes.Buffer)
 	cmd := &cobra.Command{}
