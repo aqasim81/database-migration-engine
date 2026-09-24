@@ -1,7 +1,6 @@
 # migrate
 
 [![CI](https://github.com/aqasim81/database-migration-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/aqasim81/database-migration-engine/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 Zero-downtime PostgreSQL schema migration CLI. Parses SQL with the real PostgreSQL parser, detects dangerous DDL operations that cause table locks and outages, suggests safe alternatives, and executes migrations with rollback capability.
 

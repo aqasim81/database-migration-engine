@@ -24,7 +24,7 @@ The Database Migration Engine has completed all 9 implementation phases and is r
 - **Test coverage:** 82.3% (threshold: 80%)
 - **Lint:** 0 issues (golangci-lint with complexity limits)
 - **Detection rules:** 9 rules with 90%+ coverage
-- **CI:** 5 jobs (lint, test, coverage, integration, vet)
+- **CI:** 2 jobs (`make audit`, integration tests)
 
 ## Features
 

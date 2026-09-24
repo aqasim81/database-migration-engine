@@ -27,7 +27,7 @@ RESET  := \033[0m
 help: ## Show this help message
 	@echo "Usage: make <target>"
 	@echo ""
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-18s %s\n", $$1, $$2}'
+	@grep -hE '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-18s %s\n", $$1, $$2}'
 
 # ─────────────────────────────────────────
 # SETUP
@@ -53,6 +53,10 @@ build: ## Build the binary
 .PHONY: run
 run: build ## Build and run
 	$(BUILD_DIR)/$(BINARY_NAME)
+
+.PHONY: demo
+demo: ## Run the quickstart example against a throwaway Postgres (needs Docker)
+	./examples/quickstart/run.sh
 
 .PHONY: clean
 clean: ## Remove build artifacts and coverage files
@@ -146,3 +150,6 @@ audit: fmt-check vet lint test coverage-check ## Full quality gate — format, v
 	go mod tidy -diff
 	go mod verify
 	@echo "$(GREEN)Audit passed$(RESET)"
+
+# Portable release targets (changelog, release-dry), shared via scripts/bootstrap-harness.sh.
+include harness.mk
