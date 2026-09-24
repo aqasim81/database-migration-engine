@@ -54,7 +54,11 @@ Both questions depend on the same analysis: parse each `.up.sql` with
     `SET lock_timeout` / `SET statement_timeout` when those are configured.
     If it contains CONCURRENTLY, it runs outside a transaction and no
     timeouts are set.
-  - After success, the migration is recorded in `schema_migrations`.
+  - The `schema_migrations` row is written inside the migration's own
+    transaction, so the schema change and its record commit or roll back
+    together (#4). CONCURRENTLY migrations can't use a transaction, so they
+    are recorded on the pool after the SQL succeeds. Rollback follows the
+    same rules.
 - Concurrent-statement detection is written twice, once in
   `planner.hasConcurrentOp` and once in `executor.containsConcurrentOp`. The
   code comment says this is deliberate, to avoid cross-package coupling.
@@ -79,10 +83,11 @@ Both questions depend on the same analysis: parse each `.up.sql` with
   already applied. It runs before connecting to the DB, so it can't tell them
   apart. A dangerous migration that was applied long ago will trigger the
   prompt on every later `apply` unless `--force` is used.
-- The migration's own transaction commits *before* `RecordApplied` writes to
-  `schema_migrations`, in a separate statement. A crash between the two
-  leaves the change applied but unrecorded, and the next `apply` would run it
-  again.
+- CONCURRENTLY migrations are recorded after their SQL, outside any
+  transaction. A crash between the two leaves the index built but unrecorded,
+  and the next `apply` would run it again. `CREATE INDEX CONCURRENTLY IF NOT
+  EXISTS` makes that re-run harmless. Until #4 this gap applied to every
+  migration.
 - CONCURRENTLY migrations get no `lock_timeout`/`statement_timeout`.
 - Lock-duration estimates are coarse buckets based on table size. They look
   only at the `public` schema, and tables that don't exist yet count as
@@ -107,16 +112,15 @@ Both questions depend on the same analysis: parse each `.up.sql` with
 - **Exact lock-time prediction** (e.g. `EXPLAIN` or sampling).
   **[Inferred]** Rejected as unreliable for DDL. Size buckets are enough to
   rank risk, which is what the plan table is for.
-- **Record the migration in the same transaction as its SQL.**
-  **[Inferred]** Not done, possibly because the CONCURRENTLY path can't use a
-  transaction, and one code path for both cases was simpler. This is the gap
-  I'm least sure was deliberate.
+- **Record the migration in a separate statement after its SQL commits.**
+  This was the original behaviour and was replaced in #4. It meant one code
+  path for transactional and CONCURRENTLY migrations, but any crash or tracker
+  failure between the two statements caused a re-run.
 
 ## Open questions for the author
 
 1. Should the `apply` gate skip migrations that are already applied (by moving
    the check after connecting)?
-2. Should `RecordApplied` share the migration's transaction when `RunInTx` is
-   true?
+2. ~~Should `RecordApplied` share the migration's transaction?~~ Yes; done in #4.
 3. Is `plan --out` / `apply --plan` wanted, or is "git is the plan" the
    intended model?

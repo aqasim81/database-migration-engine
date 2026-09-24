@@ -69,7 +69,7 @@ func (m *mockTracker) GetChecksum(_ context.Context, version string) (string, er
 	return cs, nil
 }
 
-func (m *mockTracker) RecordApplied(_ context.Context, p tracker.RecordParams) error {
+func (m *mockTracker) RecordAppliedIn(_ context.Context, _ tracker.Execer, p tracker.RecordParams) error {
 	if m.recordErr != nil {
 		return m.recordErr
 	}
@@ -89,7 +89,7 @@ func (m *mockTracker) GetApplied(_ context.Context) ([]tracker.AppliedMigration,
 	return m.appliedList, nil
 }
 
-func (m *mockTracker) RecordRolledBack(_ context.Context, version string) error {
+func (m *mockTracker) RecordRolledBackIn(_ context.Context, _ tracker.Execer, version string) error {
 	if m.rollbackErr != nil {
 		return m.rollbackErr
 	}
@@ -114,8 +114,10 @@ func noopLockFn(_ context.Context) (lockReleaser, error) {
 	return &mockLock{}, nil
 }
 
-func noopExecFn(_ context.Context, _, _ string) error {
-	return nil
+// noopExecFn simulates a successful transactional execution: the SQL "runs"
+// and the tracker record is written in the same (fake) transaction.
+func noopExecFn(ctx context.Context, _, _ string, record recordFunc) error {
+	return record(ctx, nil)
 }
 
 // --- shouldSkip tests ---
@@ -304,7 +306,7 @@ func TestApplyOne_execError_reportsFailed(t *testing.T) {
 	e := &Executor{
 		tracker:    mt,
 		onProgress: func(ev ProgressEvent) { events = append(events, ev) },
-		execSQL:    func(_ context.Context, _ string, _ string) error { return execErr },
+		execSQL:    func(_ context.Context, _, _ string, _ recordFunc) error { return execErr },
 	}
 
 	m := testMigration("001", "CREATE TABLE t (id INT);")
@@ -320,23 +322,36 @@ func TestApplyOne_execError_reportsFailed(t *testing.T) {
 	assert.ErrorIs(t, events[1].Error, execErr)
 }
 
-func TestApplyOne_recordError_returnsError(t *testing.T) {
+// A tracker failure happens inside the migration's transaction, so it must be
+// reported as a failed migration (the SQL is rolled back with it), never as
+// completed. Regression test for #4.
+func TestApplyOne_recordError_reportsFailed(t *testing.T) {
 	t.Parallel()
 
 	mt := newMockTracker()
-	mt.recordErr = errors.New("record failed")
+	recordErr := errors.New("record failed")
+	mt.recordErr = recordErr
+
+	var events []ProgressEvent
 
 	e := &Executor{
-		tracker: mt,
-		execSQL: noopExecFn,
+		tracker:    mt,
+		execSQL:    noopExecFn,
+		onProgress: func(ev ProgressEvent) { events = append(events, ev) },
 	}
 
 	m := testMigration("001", "CREATE TABLE t (id INT);")
 
 	err := e.applyOne(context.Background(), &m)
 
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "recording migration 001")
+	require.ErrorIs(t, err, recordErr)
+	assert.Contains(t, err.Error(), "applying migration 001: recording migration 001")
+	assert.Empty(t, mt.recorded)
+
+	require.Len(t, events, 2)
+	assert.Equal(t, StatusStarting, events[0].Status)
+	assert.Equal(t, StatusFailed, events[1].Status)
+	assert.ErrorIs(t, events[1].Error, recordErr)
 }
 
 // --- Apply tests (with mock lock + tracker) ---
@@ -603,7 +618,7 @@ func TestRollbackOne_execError_reportsFailed(t *testing.T) {
 	e := &Executor{
 		tracker:    mt,
 		onProgress: func(ev ProgressEvent) { events = append(events, ev) },
-		execSQL: func(_ context.Context, _ string, _ string) error {
+		execSQL: func(_ context.Context, _, _ string, _ recordFunc) error {
 			return execErr
 		},
 	}
@@ -622,13 +637,22 @@ func TestRollbackOne_execError_reportsFailed(t *testing.T) {
 	assert.Empty(t, mt.rolledBack)
 }
 
-func TestRollbackOne_recordError_returnsError(t *testing.T) {
+// Same as the apply case: the rollback record is written in the down
+// migration's transaction, so its failure fails the rollback. Regression test for #4.
+func TestRollbackOne_recordError_reportsFailed(t *testing.T) {
 	t.Parallel()
 
 	mt := newMockTracker()
-	mt.rollbackErr = errors.New("record failed")
+	recordErr := errors.New("record failed")
+	mt.rollbackErr = recordErr
 
-	e := &Executor{tracker: mt, execSQL: noopExecFn}
+	var events []ProgressEvent
+
+	e := &Executor{
+		tracker:    mt,
+		execSQL:    noopExecFn,
+		onProgress: func(ev ProgressEvent) { events = append(events, ev) },
+	}
 
 	m := testMigrationWithDown("001", "CREATE TABLE t (id INT);", "DROP TABLE t;")
 	lookup := buildMigrationLookup([]migration.Migration{m})
@@ -636,8 +660,13 @@ func TestRollbackOne_recordError_returnsError(t *testing.T) {
 
 	err := e.rollbackOne(context.Background(), applied, lookup)
 
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "recording rollback for 001")
+	require.ErrorIs(t, err, recordErr)
+	assert.Contains(t, err.Error(), "rolling back migration 001: recording rollback for 001")
+	assert.Empty(t, mt.rolledBack)
+
+	require.Len(t, events, 2)
+	assert.Equal(t, StatusRollingBack, events[0].Status)
+	assert.Equal(t, StatusFailed, events[1].Status)
 }
 
 func TestRollbackOne_dryRun_skipsExecution(t *testing.T) {
@@ -829,13 +858,13 @@ func TestRollback_partialFailure_earlierRollbacksTracked(t *testing.T) {
 	e := &Executor{
 		tracker:     mt,
 		acquireLock: noopLockFn,
-		execSQL: func(_ context.Context, _, _ string) error {
+		execSQL: func(ctx context.Context, _, _ string, record recordFunc) error {
 			callCount++
 			if callCount == 2 {
 				return execErr
 			}
 
-			return nil
+			return record(ctx, nil)
 		},
 		onProgress: func(ev ProgressEvent) { events = append(events, ev) },
 	}
