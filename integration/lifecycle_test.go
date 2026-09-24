@@ -300,7 +300,7 @@ func TestApply_failedMigration_reportsError(t *testing.T) {
 
 	err := exec.Apply(ctx, migrations)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "executing migration 001")
+	assert.Contains(t, err.Error(), "applying migration 001")
 
 	// Should have starting + failed events.
 	require.Len(t, events, 2)
