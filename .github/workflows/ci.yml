@@ -10,8 +10,11 @@ permissions:
   contents: read
 
 jobs:
-  lint:
-    name: Lint
+  # Mirrors the lefthook gates (pre-commit: fmt, vet, lint; pre-push: race tests,
+  # coverage threshold). `make audit` is the single source of truth, including
+  # the coverage exclusion list, so CI and local hooks cannot drift apart.
+  checks:
+    name: Audit
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,54 +23,15 @@ jobs:
         with:
           go-version: stable
 
-      - name: Install golangci-lint
-        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.10.1
-
-      - name: golangci-lint
-        run: golangci-lint run --timeout=5m
-
-  test:
-    name: Test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version: stable
-
-      - name: Run tests with race detector
-        env:
-          CGO_ENABLED: "1"
-        run: go test -race -count=1 ./internal/...
-
-  coverage:
-    name: Coverage
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version: stable
-
-      - name: Run tests with coverage
-        env:
-          CGO_ENABLED: "1"
-        run: go test -coverprofile=coverage.out -covermode=atomic ./internal/...
-
-      - name: Exclude integration-only packages from coverage
-        run: grep -v 'internal/database/advisory_lock\|internal/tracker/tracker' coverage.out > coverage-filtered.out
-
-      - name: Check coverage threshold
+      - name: Install tools
         run: |
-          COVERAGE=$(go tool cover -func=coverage-filtered.out | grep total | awk '{print $3}' | tr -d '%')
-          echo "Total coverage: ${COVERAGE}%"
-          if [ "$(echo "$COVERAGE < 80" | bc)" -eq 1 ]; then
-            echo "::error::Coverage ${COVERAGE}% is below 80% threshold"
-            exit 1
-          fi
+          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.10.1
+          go install mvdan.cc/gofumpt@latest
 
+      - name: make audit
+        run: make audit
+
+  # Kept separate: needs Docker (testcontainers) and is not part of pre-push.
   integration:
     name: Integration Tests
     runs-on: ubuntu-latest
@@ -78,22 +42,5 @@ jobs:
         with:
           go-version: stable
 
-      - name: Run integration tests
-        env:
-          CGO_ENABLED: "1"
-        run: go test -v -race -count=1 -tags=integration ./integration/...
-
-  vet:
-    name: Vet
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version: stable
-
-      - name: Go vet
-        env:
-          CGO_ENABLED: "1"
-        run: go vet ./...
+      - name: make test-integration
+        run: make test-integration
