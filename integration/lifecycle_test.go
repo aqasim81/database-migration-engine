@@ -7,6 +7,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -588,4 +589,84 @@ func TestRollback_reapplyAfterRollback(t *testing.T) {
 	applied, err := tr.GetApplied(ctx)
 	require.NoError(t, err)
 	require.Len(t, applied, 3)
+}
+
+// failTrackerWrites installs a trigger that makes schema_migrations reject
+// writes matching condition (a PL/pgSQL boolean over NEW), simulating the
+// tracker write failing after the migration SQL has already run.
+func failTrackerWrites(t *testing.T, pool *pgxpool.Pool, event, condition string) {
+	t.Helper()
+
+	ctx := context.Background()
+
+	require.NoError(t, tracker.New(pool).EnsureTable(ctx))
+
+	_, err := pool.Exec(ctx, `
+		CREATE FUNCTION fail_tracker_write() RETURNS trigger AS $$
+		BEGIN
+			IF `+condition+` THEN
+				RAISE EXCEPTION 'simulated tracker failure for %', NEW.version;
+			END IF;
+			RETURN NEW;
+		END;
+		$$ LANGUAGE plpgsql;
+
+		CREATE TRIGGER fail_tracker_write BEFORE `+event+` ON schema_migrations
+			FOR EACH ROW EXECUTE FUNCTION fail_tracker_write();`)
+	require.NoError(t, err)
+}
+
+// Regression test for #4: if recording the migration fails, the migration's
+// schema change must be rolled back with it, so the next apply doesn't re-run it.
+func TestApply_recordFails_schemaChangeRolledBack(t *testing.T) {
+	t.Parallel()
+
+	pool := SetupPostgres(t)
+	ctx := context.Background()
+	tr := tracker.New(pool)
+	failTrackerWrites(t, pool, "INSERT", "NEW.version = '002'")
+
+	err := executor.New(pool, tr).Apply(ctx, makeMigrations())
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "applying migration 002: recording migration 002")
+
+	var postsTable *string
+	require.NoError(t, pool.QueryRow(ctx, "SELECT to_regclass('public.posts')::text").Scan(&postsTable))
+	assert.Nil(t, postsTable, "002's CREATE TABLE posts must roll back when its record fails")
+
+	applied, err := tr.GetApplied(ctx)
+	require.NoError(t, err)
+	require.Len(t, applied, 1)
+	assert.Equal(t, "001", applied[0].Version)
+}
+
+// Regression test for #4, rollback direction: if marking the migration rolled
+// back fails, the down SQL must be undone too.
+func TestRollback_recordFails_downChangeRolledBack(t *testing.T) {
+	t.Parallel()
+
+	pool := SetupPostgres(t)
+	ctx := context.Background()
+	tr := tracker.New(pool)
+	migrations := makeMigrationsWithDown()
+
+	require.NoError(t, executor.New(pool, tr).Apply(ctx, migrations))
+	failTrackerWrites(t, pool, "UPDATE", "NEW.status = 'rolled_back'")
+
+	err := executor.New(pool, tr).Rollback(ctx, migrations, 1)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "rolling back migration 003: recording rollback for 003")
+
+	var emailColumns int
+	require.NoError(t, pool.QueryRow(ctx,
+		`SELECT count(*) FROM information_schema.columns
+		 WHERE table_name = 'users' AND column_name = 'email'`,
+	).Scan(&emailColumns))
+	assert.Equal(t, 1, emailColumns, "003's DROP COLUMN email must roll back when its record fails")
+
+	applied, err := tr.GetApplied(ctx)
+	require.NoError(t, err)
+	assert.Len(t, applied, 3)
 }

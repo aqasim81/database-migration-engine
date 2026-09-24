@@ -36,9 +36,9 @@ type MigrationTracker interface {
 	EnsureTable(ctx context.Context) error
 	IsApplied(ctx context.Context, version string) (bool, error)
 	GetChecksum(ctx context.Context, version string) (string, error)
-	RecordApplied(ctx context.Context, p tracker.RecordParams) error
+	RecordAppliedIn(ctx context.Context, db tracker.Execer, p tracker.RecordParams) error
 	GetApplied(ctx context.Context) ([]tracker.AppliedMigration, error)
-	RecordRolledBack(ctx context.Context, version string) error
+	RecordRolledBackIn(ctx context.Context, db tracker.Execer, version string) error
 }
 
 // lockReleaser is returned by lockFn and must be released when done.
@@ -49,8 +49,13 @@ type lockReleaser interface {
 // lockFunc acquires an advisory lock and returns a releaser.
 type lockFunc func(ctx context.Context) (lockReleaser, error)
 
-// runSQLFunc executes SQL with a descriptive label for error wrapping.
-type runSQLFunc func(ctx context.Context, sql, label string) error
+// recordFunc writes the schema_migrations change for a migration using db,
+// which is the migration's own transaction whenever one exists.
+type recordFunc func(ctx context.Context, db tracker.Execer) error
+
+// runSQLFunc executes SQL with a descriptive label for error wrapping, then
+// calls record so the tracker update commits (or rolls back) with the SQL.
+type runSQLFunc func(ctx context.Context, sql, label string, record recordFunc) error
 
 // Executor applies pending migrations with transaction safety, timeouts,
 // and advisory locks to prevent concurrent runs.
@@ -247,7 +252,13 @@ func (e *Executor) rollbackOne(
 	e.fireProgress(ProgressEvent{Migration: m, Status: StatusRollingBack})
 
 	start := time.Now()
-	execErr := e.execSQL(ctx, m.DownSQL, "executing down SQL")
+	execErr := e.execSQL(ctx, m.DownSQL, "executing down SQL", func(ctx context.Context, db tracker.Execer) error {
+		if err := e.tracker.RecordRolledBackIn(ctx, db, m.Version); err != nil {
+			return fmt.Errorf("recording rollback for %s: %w", m.Version, err)
+		}
+
+		return nil
+	})
 	duration := time.Since(start)
 
 	if execErr != nil {
@@ -261,10 +272,6 @@ func (e *Executor) rollbackOne(
 		return fmt.Errorf("rolling back migration %s: %w", m.Version, execErr)
 	}
 
-	if err := e.tracker.RecordRolledBack(ctx, m.Version); err != nil {
-		return fmt.Errorf("recording rollback for %s: %w", m.Version, err)
-	}
-
 	e.fireProgress(ProgressEvent{
 		Migration: m,
 		Status:    StatusCompleted,
@@ -276,15 +283,25 @@ func (e *Executor) rollbackOne(
 
 // runSQL executes a SQL string, choosing between transactional and
 // non-transactional execution based on whether it contains concurrent
-// operations (CREATE/DROP INDEX CONCURRENTLY).
-func (e *Executor) runSQL(ctx context.Context, sql, label string) error {
+// operations (CREATE/DROP INDEX CONCURRENTLY), then calls record.
+//
+// In the transactional case record runs inside the same transaction, so the
+// schema change and its schema_migrations row commit or roll back together.
+// Concurrent operations cannot run in a transaction; there record runs on the
+// pool after the SQL succeeds, and a crash in between leaves the change applied
+// but unrecorded.
+func (e *Executor) runSQL(ctx context.Context, sql, label string, record recordFunc) error {
 	concurrent, err := containsConcurrentOp(sql)
 	if err != nil {
 		return err
 	}
 
 	if concurrent {
-		return ExecWithoutTransaction(ctx, e.pool, sql)
+		if err := ExecWithoutTransaction(ctx, e.pool, sql); err != nil {
+			return err
+		}
+
+		return record(ctx, e.pool)
 	}
 
 	return ExecInTransaction(ctx, e.pool, func(tx pgx.Tx) error {
@@ -304,7 +321,7 @@ func (e *Executor) runSQL(ctx context.Context, sql, label string) error {
 			return fmt.Errorf("%s: %w", label, err)
 		}
 
-		return nil
+		return record(ctx, tx)
 	})
 }
 
@@ -329,7 +346,18 @@ func (e *Executor) applyOne(ctx context.Context, m *migration.Migration) error {
 	e.fireProgress(ProgressEvent{Migration: m, Status: StatusStarting})
 
 	start := time.Now()
-	execErr := e.execSQL(ctx, m.UpSQL, "executing SQL")
+	execErr := e.execSQL(ctx, m.UpSQL, "executing SQL", func(ctx context.Context, db tracker.Execer) error {
+		if err := e.tracker.RecordAppliedIn(ctx, db, tracker.RecordParams{
+			Version:    m.Version,
+			Filename:   filepath.Base(m.FilePath),
+			Checksum:   m.Checksum,
+			DurationMs: int(time.Since(start).Milliseconds()),
+		}); err != nil {
+			return fmt.Errorf("recording migration %s: %w", m.Version, err)
+		}
+
+		return nil
+	})
 	duration := time.Since(start)
 
 	if execErr != nil {
@@ -341,15 +369,6 @@ func (e *Executor) applyOne(ctx context.Context, m *migration.Migration) error {
 		})
 
 		return fmt.Errorf("applying migration %s: %w", m.Version, execErr)
-	}
-
-	if err := e.tracker.RecordApplied(ctx, tracker.RecordParams{
-		Version:    m.Version,
-		Filename:   filepath.Base(m.FilePath),
-		Checksum:   m.Checksum,
-		DurationMs: int(duration.Milliseconds()),
-	}); err != nil {
-		return fmt.Errorf("recording migration %s: %w", m.Version, err)
 	}
 
 	e.fireProgress(ProgressEvent{

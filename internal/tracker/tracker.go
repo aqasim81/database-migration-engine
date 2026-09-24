@@ -7,8 +7,15 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+// Execer runs a statement. *pgxpool.Pool and pgx.Tx both satisfy it, which lets
+// callers record a migration inside the transaction that applied it.
+type Execer interface {
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+}
 
 // AppliedMigration represents a migration record from the schema_migrations table.
 type AppliedMigration struct {
@@ -94,7 +101,13 @@ func (t *Tracker) GetApplied(ctx context.Context) ([]AppliedMigration, error) {
 // RecordApplied inserts or updates a migration record with status 'applied'.
 // Uses upsert to handle re-applying a previously rolled-back migration.
 func (t *Tracker) RecordApplied(ctx context.Context, p RecordParams) error {
-	_, err := t.pool.Exec(ctx,
+	return t.RecordAppliedIn(ctx, t.pool, p)
+}
+
+// RecordAppliedIn is RecordApplied executed on db, typically the transaction
+// that ran the migration so the schema change and its record commit together.
+func (t *Tracker) RecordAppliedIn(ctx context.Context, db Execer, p RecordParams) error {
+	_, err := db.Exec(ctx,
 		`INSERT INTO schema_migrations (version, filename, checksum, duration_ms, status)
 		 VALUES ($1, $2, $3, $4, 'applied')
 		 ON CONFLICT (version) DO UPDATE SET
@@ -114,7 +127,13 @@ func (t *Tracker) RecordApplied(ctx context.Context, p RecordParams) error {
 
 // RecordRolledBack updates a migration's status to 'rolled_back'.
 func (t *Tracker) RecordRolledBack(ctx context.Context, version string) error {
-	tag, err := t.pool.Exec(ctx,
+	return t.RecordRolledBackIn(ctx, t.pool, version)
+}
+
+// RecordRolledBackIn is RecordRolledBack executed on db, typically the
+// transaction that ran the down migration.
+func (t *Tracker) RecordRolledBackIn(ctx context.Context, db Execer, version string) error {
+	tag, err := db.Exec(ctx,
 		`UPDATE schema_migrations SET status = 'rolled_back' WHERE version = $1`,
 		version,
 	)
