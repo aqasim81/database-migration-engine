@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/aqasim81/database-migration-engine/internal/config"
+	"github.com/aqasim81/database-migration-engine/internal/migration"
 )
 
 func TestLoadAndSortMigrations_validDir_returnsSorted(t *testing.T) {
@@ -140,24 +141,40 @@ func TestRunApply_noMigrations_printsMessage(t *testing.T) { //nolint:parallelte
 	assert.Contains(t, buf.String(), "No migration files found")
 }
 
-func TestRunApply_dangerousMigrations_blocked(t *testing.T) { //nolint:paralleltest // writes global AppConfig
-	setTestAppConfig(t, &config.Config{
-		DatabaseURL:      "postgres://test:test@localhost/test",
-		MigrationsDir:    "./testdata/migrations",
-		TargetPGVersion:  14,
-		LockTimeout:      5000000000,
-		StatementTimeout: 30000000000,
-	})
+// The DB-backed runApply gate tests live in apply_integration_test.go: the
+// gate now reads applied state before prompting, so it needs a real database.
 
-	buf := new(bytes.Buffer)
-	cmd := &cobra.Command{}
-	cmd.SetOut(buf)
-	cmd.SetIn(strings.NewReader("no\n")) // deny confirmation
+func TestPendingMigrations(t *testing.T) {
+	t.Parallel()
 
-	err := runApply(cmd, nil)
+	all := []migration.Migration{{Version: "001"}, {Version: "002"}, {Version: "003"}}
 
-	require.Error(t, err)
-	assert.ErrorIs(t, err, errDangerousMigrations)
+	tests := []struct {
+		name    string
+		applied map[string]bool
+		want    []string
+	}{
+		{name: "none applied", applied: map[string]bool{}, want: []string{"001", "002", "003"}},
+		{name: "nil applied map", applied: nil, want: []string{"001", "002", "003"}},
+		{name: "some applied", applied: map[string]bool{"001": true, "003": true}, want: []string{"002"}},
+		{name: "all applied", applied: map[string]bool{"001": true, "002": true, "003": true}, want: []string{}},
+		{name: "applied version without file", applied: map[string]bool{"999": true}, want: []string{"001", "002", "003"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := pendingMigrations(all, tt.applied)
+
+			versions := make([]string, 0, len(got))
+			for _, m := range got {
+				versions = append(versions, m.Version)
+			}
+
+			assert.Equal(t, tt.want, versions)
+		})
+	}
 }
 
 func TestReadConfirmation_yes(t *testing.T) {
