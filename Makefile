@@ -27,7 +27,7 @@ RESET  := \033[0m
 help: ## Show this help message
 	@echo "Usage: make <target>"
 	@echo ""
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-18s %s\n", $$1, $$2}'
+	@grep -hE '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-18s %s\n", $$1, $$2}'
 
 # ─────────────────────────────────────────
 # SETUP
@@ -146,3 +146,6 @@ audit: fmt-check vet lint test coverage-check ## Full quality gate — format, v
 	go mod tidy -diff
 	go mod verify
 	@echo "$(GREEN)Audit passed$(RESET)"
+
+# Portable release targets (changelog, release-dry) shared across projects.
+include harness.mk
