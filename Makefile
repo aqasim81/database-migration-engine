@@ -54,6 +54,10 @@ build: ## Build the binary
 run: build ## Build and run
 	$(BUILD_DIR)/$(BINARY_NAME)
 
+.PHONY: demo
+demo: ## Run the quickstart example against a throwaway Postgres (needs Docker)
+	./examples/quickstart/run.sh
+
 .PHONY: clean
 clean: ## Remove build artifacts and coverage files
 	rm -rf $(BUILD_DIR) $(COVERAGE_DIR)
@@ -147,5 +151,5 @@ audit: fmt-check vet lint test coverage-check ## Full quality gate — format, v
 	go mod verify
 	@echo "$(GREEN)Audit passed$(RESET)"
 
-# Portable release targets (changelog, release-dry) shared across projects.
+# Portable release targets (changelog, release-dry), shared via scripts/bootstrap-harness.sh.
 include harness.mk

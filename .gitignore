@@ -43,3 +43,6 @@ plans/
 
 # Go
 vendor/
+
+# GoReleaser output (make release-dry)
+dist/
