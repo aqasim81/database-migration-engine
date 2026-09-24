@@ -21,7 +21,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: stable
+          go-version-file: go.mod
 
       - name: Install tools
         run: |
@@ -40,7 +40,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: stable
+          go-version-file: go.mod
 
       - name: make test-integration
         run: make test-integration
