@@ -39,8 +39,9 @@ Both questions depend on the same analysis: parse each `.up.sql` with
 
 ### `apply` does not consume a plan. It re-derives everything (`internal/cli/apply.go`, `internal/executor`)
 
-- `apply` reloads the files and **re-runs the analyzer itself**. If any
-  finding is HIGH or CRITICAL, it prints the findings and requires the user to
+- `apply` reloads the files, connects, and **re-runs the analyzer itself** on
+  the migrations that are still pending (already-applied ones were confirmed
+  when they ran; #5). If any finding is HIGH or CRITICAL, it prints the findings and requires the user to
   type `yes` on stdin. `--force` skips the check, and so does `--dry-run`.
   EOF or any other answer aborts with `errDangerousMigrations`.
 - The executor takes a session-level advisory lock with
@@ -79,10 +80,9 @@ Both questions depend on the same analysis: parse each `.up.sql` with
   runs. If files change in between, `apply` runs the new content.
   Applied-migration checksums catch edits only *after* a migration has been
   applied.
-- The `apply` safety gate analyzes **all** migration files, including ones
-  already applied. It runs before connecting to the DB, so it can't tell them
-  apart. A dangerous migration that was applied long ago will trigger the
-  prompt on every later `apply` unless `--force` is used.
+- `apply` needs a reachable database before it can show any findings, since
+  the gate reads applied state first (#5). `analyze` remains the
+  database-free check.
 - CONCURRENTLY migrations are recorded after their SQL, outside any
   transaction. A crash between the two leaves the index built but unrecorded,
   and the next `apply` would run it again. `CREATE INDEX CONCURRENTLY IF NOT
@@ -119,8 +119,8 @@ Both questions depend on the same analysis: parse each `.up.sql` with
 
 ## Open questions for the author
 
-1. Should the `apply` gate skip migrations that are already applied (by moving
-   the check after connecting)?
+1. ~~Should the `apply` gate skip migrations that are already applied?~~ Yes;
+   done in #5.
 2. ~~Should `RecordApplied` share the migration's transaction?~~ Yes; done in #4.
 3. Is `plan --out` / `apply --plan` wanted, or is "git is the plan" the
    intended model?
