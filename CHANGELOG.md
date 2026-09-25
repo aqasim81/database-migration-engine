@@ -2,7 +2,7 @@
 
 All notable changes to this project. Generated from conventional commits by git-cliff.
 
-## [Unreleased]
+## [0.1.0] - 2026-09-25
 
 ### Features
 
@@ -37,6 +37,10 @@ All notable changes to this project. Generated from conventional commits by git-
 - Address phase 4 review feedback ([a21b994](https://github.com/aqasim81/database-migration-engine/commit/a21b994b9ec6e985e593eafa8522723cb74eddfd))
 - Align pre-push coverage check with Makefile exclusion filter ([00d9a72](https://github.com/aqasim81/database-migration-engine/commit/00d9a7215a406f5ddd16ac81b8b2255d30919c4b))
 - Address review feedback (phase 6) ([1a91dcc](https://github.com/aqasim81/database-migration-engine/commit/1a91dccc2b345e3e358e0ade5f03ec8872113845))
+- Update stale apply error assertion in integration test (#2) (#3) ([8a61491](https://github.com/aqasim81/database-migration-engine/commit/8a6149165ce2a71cc9dacea14f622322443697fe))
+- Record migrations in the same transaction as their SQL (#4) (#6) ([41021e7](https://github.com/aqasim81/database-migration-engine/commit/41021e77eacceb6d7fea1cd4cb67cc9b508cbd36))
+- Gate apply on pending migrations only (#5) (#8) ([312c891](https://github.com/aqasim81/database-migration-engine/commit/312c891e98a011f77fa1ba3313d84d0eadae607d))
+- Scope migration timeouts to their transaction (#7) (#9) ([eaea1b9](https://github.com/aqasim81/database-migration-engine/commit/eaea1b905105c421f170ea9ddbe116874c4cc74c))
 
 ### Refactoring
 
@@ -72,7 +76,8 @@ All notable changes to this project. Generated from conventional commits by git-
 - Update coverage config and CI for database packages (phase 4) ([bd21cca](https://github.com/aqasim81/database-migration-engine/commit/bd21ccaddbcc5e6189cca2adc683f2eedb79e496))
 - Update coverage config and CI for executor package (phase 5) ([ba70126](https://github.com/aqasim81/database-migration-engine/commit/ba70126ba1586244b299e787a8ee07d9a26d3693))
 - Add goreleaser config and release workflow ([a01e380](https://github.com/aqasim81/database-migration-engine/commit/a01e380db2d45dafd49f448f0e91e58b92f0a80d))
-- Consolidate CI into make audit plus integration job ([d2f5fdb](https://github.com/aqasim81/database-migration-engine/commit/d2f5fdb23da6ebe560f67f9e424ee1ca3bb8a7d9))
-- Add pull request template ([e098368](https://github.com/aqasim81/database-migration-engine/commit/e0983685bae8349fa44714b359d0e445b62e1a96))
+- Add review, release and showcase harness (#1) ([7cd528a](https://github.com/aqasim81/database-migration-engine/commit/7cd528ac47391707fe1f18974b200aad59b8d606))
+- Config cleanup — goreleaser deprecation, unenforced coverage config (#10) (#11) ([a2213b1](https://github.com/aqasim81/database-migration-engine/commit/a2213b158f828c8a3b44a205a84a2f29da161968))
+- Ship macOS binaries (#12) (#13) ([92bd598](https://github.com/aqasim81/database-migration-engine/commit/92bd59890609a125b897dc15ef5def2ec4ab331e))
 
 
