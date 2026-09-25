@@ -25,12 +25,13 @@ export PS1='$ '
 clear
 ```
 
-Terminal: 100×30, dark theme, font at least 16pt.
+Terminal: dark theme, font at least 16pt. Tools: `brew install asciinema agg`
+(asciinema 3.x; `agg` turns the recording into a GIF for the README).
 
 ## Record
 
 ```bash
-asciinema rec --cols 100 --rows 30 --idle-time-limit 2 \
+asciinema rec --window-size 100x30 --idle-time-limit 2 \
   --title "migrate: catching a blocking CREATE INDEX" migrate-demo.cast
 ```
 
@@ -53,7 +54,12 @@ matters.
 ```bash
 docker rm -f migrate-demo
 asciinema play migrate-demo.cast          # check the take
-asciinema upload migrate-demo.cast        # optional
+
+# GIF for the README (GitHub can't embed the asciinema player).
+agg --font-size 16 migrate-demo.cast docs/demo.gif
+
+# Optional: shareable player page on asciinema.org (prints a URL).
+asciinema upload migrate-demo.cast
 ```
 
 Re-takes need a fresh database, because step 0:40 records the migrations as
