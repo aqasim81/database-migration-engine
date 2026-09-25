@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
@@ -68,6 +69,16 @@ func colorStatus(status string) string {
 	default:
 		return status
 	}
+}
+
+// padCell right-pads s to width visible columns. Unlike fmt's %-Ns it ignores ANSI
+// escape codes, so colored cells line up with plain ones.
+func padCell(s string, width int) string {
+	if pad := width - lipgloss.Width(s); pad > 0 {
+		return s + strings.Repeat(" ", pad)
+	}
+
+	return s
 }
 
 // getFormat reads the --format flag from the command, falling back to the config value.

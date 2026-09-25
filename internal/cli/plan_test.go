@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -269,4 +270,33 @@ func TestRunPlan_jsonFormat(t *testing.T) { //nolint:paralleltest // writes glob
 	require.NoError(t, json.Unmarshal(buf.Bytes(), &output))
 
 	assert.NotEmpty(t, output.Steps)
+}
+
+func TestPrintPlan_coloredRisk_keepsColumnsAligned(t *testing.T) { //nolint:paralleltest // forceColor changes global lipgloss state
+	forceColor(t)
+
+	plan := &planner.Plan{
+		Steps: []planner.MigrationStep{
+			{
+				Migration: &migration.Migration{Version: "002", Name: "add_email_index"},
+				Status:    planner.StatusPending,
+				Findings:  []analyzer.Finding{{Severity: analyzer.High, Rule: "create-index-not-concurrent"}},
+				Impacts:   []planner.Impact{{EstimatedLockDuration: planner.DurationOver5min}},
+				RunInTx:   true,
+			},
+		},
+		TotalPending:  1,
+		HighRiskCount: 1,
+	}
+
+	buf := new(bytes.Buffer)
+	printPlan(buf, plan)
+	output := buf.String()
+
+	require.Contains(t, output, "\x1b[", "precondition: risk cell is colored")
+
+	header := tableRow(t, output, "Est. Lock")
+	row := tableRow(t, output, "add_email_index")
+	assert.Equal(t, strings.Index(header, "Est. Lock"), strings.Index(row, "> 5min"),
+		"lock column misaligned:\n%s\n%s", header, row)
 }
