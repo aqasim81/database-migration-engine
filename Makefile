@@ -121,7 +121,7 @@ test-all: test test-integration ## Run all tests (unit + integration)
 # COVERAGE
 # ─────────────────────────────────────────
 
-# Exclude packages tested only via integration tests (see .testcoverage.yml overrides).
+# Files exercised only by integration tests (make test-integration), excluded from the unit-test gate.
 COVERAGE_EXCLUDE := internal/database/advisory_lock\|internal/tracker/tracker\|internal/executor/transaction\|internal/executor/safety
 
 .PHONY: coverage
