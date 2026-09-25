@@ -44,6 +44,29 @@ func tableRow(t *testing.T, out, substr string) string {
 	return ""
 }
 
+func TestPadCell_padsToVisibleWidth(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		in    string
+		width int
+		want  string
+	}{
+		{"plain shorter", "HIGH", 6, "HIGH  "},
+		{"colored shorter", "\x1b[31mHIGH\x1b[0m", 6, "\x1b[31mHIGH\x1b[0m  "},
+		{"exact width", "HIGH", 4, "HIGH"},
+		{"longer than width", "CRITICAL", 4, "CRITICAL"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, padCell(tt.in, tt.width))
+		})
+	}
+}
+
 func TestColorSeverity_allLevels(t *testing.T) {
 	t.Parallel()
 

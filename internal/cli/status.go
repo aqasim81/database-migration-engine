@@ -152,10 +152,10 @@ func printStatusText(out io.Writer, entries []statusEntry) {
 			duration = formatDurationMs(e.DurationMs)
 		}
 
-		fmt.Fprintf(out, "%-10s %-22s %-12s %-22s %s\n",
+		fmt.Fprintf(out, "%-10s %-22s %s %-22s %s\n",
 			e.Version,
-			analyzer.TruncateSQL(e.Name, 22), //nolint:mnd // column width
-			colorStatus(e.Status),
+			analyzer.TruncateSQL(e.Name, 22),   //nolint:mnd // column width
+			padCell(colorStatus(e.Status), 12), //nolint:mnd // column width
 			appliedAt,
 			duration,
 		)

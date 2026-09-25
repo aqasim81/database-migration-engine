@@ -139,12 +139,12 @@ func printPlan(out io.Writer, plan *planner.Plan) {
 			risk = colorSeverity(step.MaxSeverity())
 		}
 
-		fmt.Fprintf(out, "%-4d %-10s %-22s %-10s %-10s %s\n",
+		fmt.Fprintf(out, "%-4d %-10s %-22s %-10s %s %s\n",
 			i+1,
 			step.Migration.Version,
 			analyzer.TruncateSQL(step.Migration.Name, 22), //nolint:mnd // column width
 			step.Status,
-			risk,
+			padCell(risk, 10), //nolint:mnd // column width
 			estLock,
 		)
 	}
