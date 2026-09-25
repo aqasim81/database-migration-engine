@@ -2,6 +2,21 @@
 
 All notable changes to this project. Generated from conventional commits by git-cliff.
 
+## [0.1.1] - 2026-09-25
+
+### Bug fixes
+
+- Keep plan and status table columns aligned when colored (#21) ([60276d9](https://github.com/aqasim81/database-migration-engine/commit/60276d9bfb7233ca2c45ea1be2f27aa00697c816))
+
+### Documentation
+
+- Add demo GIF and quickstart to README (#20) ([1e735f6](https://github.com/aqasim81/database-migration-engine/commit/1e735f6aa2415d470030e98de37814701ac5cdb2))
+
+### Chores
+
+- Keep internal docs out of the public repo (#17) (#18) ([fb18829](https://github.com/aqasim81/database-migration-engine/commit/fb188297fddfc0f75d56f549e1ca33c261c5db0e))
+- Add AI-native harness (review policy, invariants, verify gate) (#19) ([efa8285](https://github.com/aqasim81/database-migration-engine/commit/efa8285d282273ece481125b4778e7ace4093a3b))
+
 ## [0.1.0] - 2026-09-25
 
 ### Features
@@ -79,5 +94,6 @@ All notable changes to this project. Generated from conventional commits by git-
 - Add review, release and showcase harness (#1) ([7cd528a](https://github.com/aqasim81/database-migration-engine/commit/7cd528ac47391707fe1f18974b200aad59b8d606))
 - Config cleanup — goreleaser deprecation, unenforced coverage config (#10) (#11) ([a2213b1](https://github.com/aqasim81/database-migration-engine/commit/a2213b158f828c8a3b44a205a84a2f29da161968))
 - Ship macOS binaries (#12) (#13) ([92bd598](https://github.com/aqasim81/database-migration-engine/commit/92bd59890609a125b897dc15ef5def2ec4ab331e))
+- Update CHANGELOG for v0.1.0 (#14) (#15) ([e8e1e28](https://github.com/aqasim81/database-migration-engine/commit/e8e1e2805ff01a6700b5d7d8aea95ddf6cded4e6))
 
 
