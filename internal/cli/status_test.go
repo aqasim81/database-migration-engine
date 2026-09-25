@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -179,4 +180,19 @@ func TestRunStatus_noDatabaseURL_returnsError(t *testing.T) { //nolint:parallelt
 	err := runStatus(cmd, nil)
 	require.Error(t, err)
 	assert.ErrorIs(t, err, errDatabaseURLRequired)
+}
+
+func TestPrintStatusText_coloredStatus_keepsColumnsAligned(t *testing.T) { //nolint:paralleltest // forceColor changes global lipgloss state
+	forceColor(t)
+
+	buf := new(bytes.Buffer)
+	printStatusText(buf, testStatusEntries())
+	output := buf.String()
+
+	require.Contains(t, output, "\x1b[", "precondition: status cell is colored")
+
+	header := tableRow(t, output, "Applied At")
+	row := tableRow(t, output, "create_users")
+	assert.Equal(t, strings.Index(header, "Applied At"), strings.Index(row, "2024-01-15 10:30:00"),
+		"applied-at column misaligned:\n%s\n%s", header, row)
 }

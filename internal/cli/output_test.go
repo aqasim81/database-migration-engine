@@ -2,8 +2,12 @@ package cli
 
 import (
 	"bytes"
+	"regexp"
+	"strings"
 	"testing"
 
+	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -11,6 +15,34 @@ import (
 	"github.com/aqasim81/database-migration-engine/internal/analyzer"
 	"github.com/aqasim81/database-migration-engine/internal/config"
 )
+
+var ansiEscape = regexp.MustCompile(`\x1b\[[0-9;]*m`) //nolint:gochecknoglobals // compiled once for tests
+
+// forceColor makes lipgloss emit ANSI colors, as it does on a real terminal.
+// It changes global state, so callers must not run in parallel.
+func forceColor(t *testing.T) {
+	t.Helper()
+
+	prev := lipgloss.ColorProfile()
+	lipgloss.SetColorProfile(termenv.ANSI)
+	t.Cleanup(func() { lipgloss.SetColorProfile(prev) })
+}
+
+// tableRow returns the first line of out that contains substr, with ANSI codes stripped.
+func tableRow(t *testing.T, out, substr string) string {
+	t.Helper()
+
+	for line := range strings.SplitSeq(out, "\n") {
+		plain := ansiEscape.ReplaceAllString(line, "")
+		if strings.Contains(plain, substr) {
+			return plain
+		}
+	}
+
+	require.Failf(t, "row not found", "no line contains %q in:\n%s", substr, out)
+
+	return ""
+}
 
 func TestColorSeverity_allLevels(t *testing.T) {
 	t.Parallel()
