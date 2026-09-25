@@ -63,7 +63,7 @@ Most migration tools blindly execute SQL files. A single `CREATE INDEX` on a lar
 **Download a binary** from [GitHub Releases](https://github.com/aqasim81/database-migration-engine/releases): macOS (Apple silicon and Intel) and Linux x86-64. The Linux binary is statically linked, so it runs on any distro.
 
 ```bash
-VERSION=0.1.0
+VERSION=0.1.1
 OS_ARCH=darwin_arm64   # or darwin_amd64, linux_amd64
 curl -sSfL "https://github.com/aqasim81/database-migration-engine/releases/download/v${VERSION}/database-migration-engine_${VERSION}_${OS_ARCH}.tar.gz" | tar -xz migrate
 ./migrate --version
