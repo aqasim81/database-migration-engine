@@ -9,7 +9,7 @@ import (
 	"github.com/aqasim81/database-migration-engine/internal/config"
 )
 
-const version = "0.1.0"
+const version = "0.1.1"
 
 // AppConfig holds the loaded configuration, set during PersistentPreRunE.
 var AppConfig *config.Config //nolint:gochecknoglobals // standard Cobra pattern for shared config
