@@ -10,7 +10,6 @@ import (
 	"github.com/aqasim81/database-migration-engine/internal/analyzer"
 	"github.com/aqasim81/database-migration-engine/internal/config"
 	"github.com/aqasim81/database-migration-engine/internal/planner"
-	"github.com/aqasim81/database-migration-engine/internal/tracker"
 )
 
 var planCmd = &cobra.Command{ //nolint:gochecknoglobals // standard Cobra pattern
@@ -88,10 +87,8 @@ func loadAppliedState(
 	cfg *config.Config,
 	out io.Writer,
 ) (applied map[string]bool, sizer planner.TableSizer, cleanup func(), err error) {
-	applied = make(map[string]bool)
-
 	if cfg.DatabaseURL == "" {
-		return applied, nil, nil, nil
+		return make(map[string]bool), nil, nil, nil
 	}
 
 	pool, err := connectDB(ctx, cfg, out)
@@ -99,20 +96,10 @@ func loadAppliedState(
 		return nil, nil, nil, err
 	}
 
-	t := tracker.New(pool)
-	if err = t.EnsureTable(ctx); err != nil {
-		pool.Close()
-		return nil, nil, nil, fmt.Errorf("ensuring migrations table: %w", err)
-	}
-
-	appliedList, err := t.GetApplied(ctx)
+	applied, err = appliedVersions(ctx, pool)
 	if err != nil {
 		pool.Close()
-		return nil, nil, nil, fmt.Errorf("getting applied migrations: %w", err)
-	}
-
-	for _, am := range appliedList {
-		applied[am.Version] = true
+		return nil, nil, nil, err
 	}
 
 	return applied, planner.NewPgTableSizer(pool), pool.Close, nil

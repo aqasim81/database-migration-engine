@@ -68,14 +68,6 @@ func runApply(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	if !force && !dryRun {
-		if blocked, analyzeErr := checkDangerousMigrations(cmd, sorted, cfg); analyzeErr != nil {
-			return analyzeErr
-		} else if blocked {
-			return errDangerousMigrations
-		}
-	}
-
 	ctx := cmd.Context()
 	if ctx == nil {
 		ctx = context.Background()
@@ -86,6 +78,24 @@ func runApply(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 	defer pool.Close()
+
+	// Gate only on migrations that would actually run: already-applied ones
+	// were confirmed when they were applied and must not prompt again.
+	if !force && !dryRun {
+		applied, err := appliedVersions(ctx, pool)
+		if err != nil {
+			return err
+		}
+
+		blocked, err := checkDangerousMigrations(cmd, pendingMigrations(sorted, applied), cfg)
+		if err != nil {
+			return err
+		}
+
+		if blocked {
+			return errDangerousMigrations
+		}
+	}
 
 	return executeMigrations(ctx, cmd.OutOrStdout(), pool, sorted, applyOpts{
 		lockTimeout: lockTimeout,
@@ -123,6 +133,41 @@ func connectDB(ctx context.Context, cfg *config.Config, out io.Writer) (*pgxpool
 	}
 
 	return pool, nil
+}
+
+// appliedVersions returns the set of versions recorded as applied, creating
+// the schema_migrations table first if this is a fresh database.
+func appliedVersions(ctx context.Context, pool *pgxpool.Pool) (map[string]bool, error) {
+	t := tracker.New(pool)
+	if err := t.EnsureTable(ctx); err != nil {
+		return nil, fmt.Errorf("ensuring migrations table: %w", err)
+	}
+
+	appliedList, err := t.GetApplied(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("getting applied migrations: %w", err)
+	}
+
+	applied := make(map[string]bool, len(appliedList))
+	for _, am := range appliedList {
+		applied[am.Version] = true
+	}
+
+	return applied, nil
+}
+
+// pendingMigrations returns the migrations whose versions are not in applied,
+// preserving order.
+func pendingMigrations(sorted []migration.Migration, applied map[string]bool) []migration.Migration {
+	pending := make([]migration.Migration, 0, len(sorted))
+
+	for i := range sorted {
+		if !applied[sorted[i].Version] {
+			pending = append(pending, sorted[i])
+		}
+	}
+
+	return pending
 }
 
 func executeMigrations(

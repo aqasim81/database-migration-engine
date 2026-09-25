@@ -112,7 +112,7 @@ test-short: ## Run short tests only (fast feedback)
 
 .PHONY: test-integration
 test-integration: ## Run integration tests (requires Docker)
-	$(GOTEST) -v -race -count=1 -tags=integration ./integration/...
+	$(GOTEST) -v -race -count=1 -tags=integration ./integration/... ./internal/cli/...
 
 .PHONY: test-all
 test-all: test test-integration ## Run all tests (unit + integration)
