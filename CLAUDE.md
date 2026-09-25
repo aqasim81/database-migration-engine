@@ -15,6 +15,7 @@ Go 1.25+ | pg_query_go v6 (C-backed PG parser) | Cobra CLI | pgx v5 | testify + 
 ```bash
 # CGO_ENABLED=1 is required for ALL Go commands (pg_query_go wraps C)
 make audit          # Full gate: fmt + vet + lint + test + coverage (run before committing)
+make verify         # Same gate under the starter-kit name
 make test           # Unit tests with -race
 make test-integration  # Integration tests (requires Docker)
 make lint           # golangci-lint
@@ -90,46 +91,20 @@ cmd/migrate/main.go → internal/cli/ → internal/{parser,migration,analyzer,pl
 - Use `config.RedactURL()` for database URLs in CLI output — never log raw URLs
 - `gitleaks` on every commit via lefthook; `gosec` enabled in linter
 
-## Code Review
+## Invariants
 
-### What matters here
-- **Rule correctness against real PostgreSQL semantics.** Each finding's severity and lock type must
-  match what PG actually does, including version gating (`TargetPGVersion`, e.g. non-volatile
-  DEFAULT safe on 11+). A new or changed rule needs table-driven cases for the safe variant,
-  the dangerous variant, and nil/odd AST shapes.
-- **Transaction boundaries.** CONCURRENTLY statements must run outside a transaction; everything
-  else runs in one transaction per migration with lock/statement timeouts. Concurrent detection
-  lives in two places (`planner.hasConcurrentOp`, `executor.containsConcurrentOp`); change both.
-- **Lock and connection release on every path.** Advisory lock handles, pooled conns, and tx
-  rollback in error branches.
-- **Tracker consistency.** Anything that changes when `RecordApplied`/`RecordRolledBack` runs, or
-  how checksums are computed, can make existing databases re-run or reject migrations.
-- **Output safety.** Database URLs go through `config.RedactURL()`; nothing prints raw credentials.
-- **Error context.** Errors name the migration version and the operation.
-- **CLI contract.** Exit codes, `--format json` / `github-actions` shape, and `--fail-on-high`
-  are consumed by CI pipelines; changes are breaking.
+Rules that must never break (checked by the `invariant-auditor` subagent and the Invariants pass in REVIEW.md):
+1. Rule severity and lock type match real PostgreSQL behaviour for the target version (`TargetPGVersion`).
+2. CONCURRENTLY statements run outside a transaction; everything else runs in one transaction per migration
+   with lock/statement timeouts. Concurrent detection is changed in both `planner.hasConcurrentOp` and
+   `executor.containsConcurrentOp`.
+3. Advisory locks, pooled connections and transactions are released/rolled back on every path, including errors.
+4. A migration is recorded in `schema_migrations` in the same transaction as its SQL; checksum computation
+   never changes silently (existing databases must not re-run or reject migrations).
+5. Database URLs are printed only through `config.RedactURL()`; no raw credentials in output or logs.
+6. The CLI contract (exit codes, `--format json` / `github-actions` shape, `--fail-on-high`) is stable.
 
-### Don't comment on (golangci-lint already enforces it)
-Formatting and import grouping (gofumpt, goimports), complexity and length (cyclop 15,
-gocognit 20, funlen 80/40, nestif), error wrapping and `errors.Is` use (wrapcheck, errorlint,
-nilerr), comment punctuation (godot), `//nolint` without linter + reason (nolintlint),
-security patterns (gosec), testify misuse and missing `t.Parallel` (testifylint, tparallel),
-unused params/results (unparam, revive). If lint passes, these are settled.
-
-### Error handling (as practiced)
-- Return errors, never panic. Wrap with `fmt.Errorf("doing X for %s: %w", version, err)`.
-- Sentinels are package-level `var`s: in `errors.go` (`executor`, `database`) or beside their
-  single use (`cli/apply.go`). Callers match with `errors.Is`.
-- Only `cli.Execute` prints errors and sets the exit code; `RunE` functions return errors.
-- `wrapcheck` ignores this module's own packages, so internal errors pass through unwrapped
-  when the callee already added context.
-
-### Tests (as practiced)
-- Table-driven, `t.Parallel()` at both levels, `require` for preconditions, `assert` for checks.
-- Black-box `_test` packages by default. Executor internals are tested white-box by injecting
-  `acquireLock` / `execSQL` fakes (`executor_internal_test.go`), not a mocked pgx pool.
-- Bug fixes need a regression test that fails without the fix.
-- Anything touching real SQL execution, locks, or `schema_migrations` belongs in `integration/`.
+Review standards (what matters, what lint already covers, error-handling and test conventions) live in `REVIEW.md`.
 
 ## Git & Workflow
 
@@ -154,3 +129,9 @@ Internal planning and operational docs live in `plans/`, which is gitignored and
 Public: `.golangci.yml` | `.github/workflows/ci.yml` | `.github/workflows/release.yml` | `docs/adr/`
 
 Local only (`plans/`, gitignored): `runbook.md` (release, env quirks, harness reuse, to-dos) | `demo.md` (demo recording script) | `status.md` (project status) | `prd.md` (requirements) | `implementation_plan.md` (9-phase plan) | `checklist.md` | `phases/`
+
+## Workflow
+Workflow rules: `.claude/rules/ai-native-workflow.md` (local). Review policy: `REVIEW.md`.
+
+## Known mistakes to avoid
+(When the same mistake happens twice, add the correction here.)

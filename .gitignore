@@ -46,3 +46,9 @@ vendor/
 
 # GoReleaser output (make release-dry)
 dist/
+secrets/
+.claude/forbidden-terms.local.txt
+intent/
+specs/
+docs/templates/
+docs/ENGINEERING_WORKFLOW.md
