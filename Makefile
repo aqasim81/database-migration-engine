@@ -151,5 +151,8 @@ audit: fmt-check vet lint test coverage-check ## Full quality gate — format, v
 	go mod verify
 	@echo "$(GREEN)Audit passed$(RESET)"
 
+.PHONY: verify
+verify: audit ## Single "done" gate (starter-kit name for audit)
+
 # Portable release targets (changelog, release-dry), shared via scripts/bootstrap-harness.sh.
 include harness.mk
