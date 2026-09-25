@@ -1,12 +1,20 @@
 # yaml-language-server: $schema=https://goreleaser.com/static/schema.json
 version: 2
 
+# pg_query_go is C (CGO), so every target needs a C toolchain for that target.
+# This config must run on macOS (see .github/workflows/release.yml):
+#   - darwin builds use Apple clang natively. They need the macOS SDK
+#     (libresolv, CoreFoundation, Security), which is why they can't be
+#     cross-compiled from Linux.
+#   - the linux build cross-compiles with zig against musl, producing a fully
+#     static binary with no glibc version requirement. Requires zig on PATH.
+
 before:
   hooks:
     - go mod tidy
 
 builds:
-  - id: migrate
+  - id: darwin
     main: ./cmd/migrate
     binary: migrate
     env:
@@ -14,13 +22,24 @@ builds:
     ldflags:
       - -s -w
     goos:
+      - darwin
+    goarch:
+      - arm64
+      - amd64
+
+  - id: linux
+    main: ./cmd/migrate
+    binary: migrate
+    env:
+      - CGO_ENABLED=1
+      - CC=zig cc -target x86_64-linux-musl
+    ldflags:
+      # zig's linker ignores Go's -s; strip via the external linker too.
+      - -s -w -extldflags=-s
+    goos:
       - linux
     goarch:
       - amd64
-    # NOTE: pg_query_go requires CGO, which makes cross-compilation non-trivial.
-    # This config builds for linux/amd64 (the CI runner's native platform).
-    # To add darwin/arm64, use a separate CI job on macos-latest or a
-    # Docker-based cross-compiler like goreleaser-cross.
 
 archives:
   - formats: [tar.gz]

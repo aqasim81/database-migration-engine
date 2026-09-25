@@ -8,7 +8,7 @@ Zero-downtime PostgreSQL schema migration CLI. Parses SQL with the real PG parse
 
 ## Stack
 
-Go 1.22+ | pg_query_go v6 (C-backed PG parser) | Cobra CLI | pgx v5 | testify + testcontainers-go | YAML config (gopkg.in/yaml.v3) | lipgloss TUI
+Go 1.25+ | pg_query_go v6 (C-backed PG parser) | Cobra CLI | pgx v5 | testify + testcontainers-go | YAML config (gopkg.in/yaml.v3) | lipgloss TUI
 
 ## Key Commands
 
