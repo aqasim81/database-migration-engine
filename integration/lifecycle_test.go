@@ -6,6 +6,7 @@ import (
 	"context"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/assert"
@@ -272,6 +273,44 @@ func TestApply_withTimeouts_succeeds(t *testing.T) {
 	applied, err := tr.GetApplied(ctx)
 	require.NoError(t, err)
 	require.Len(t, applied, 1)
+}
+
+// Regression test for #7: the migration's timeouts must end with its
+// transaction, not stay on the pooled connection for the next user.
+func TestApply_withTimeouts_doNotLeakToPooledConnections(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	// Two connections: one holds the advisory lock, the other runs the migration.
+	cfg, err := pgxpool.ParseConfig(SetupPostgresDSN(t))
+	require.NoError(t, err)
+	cfg.MaxConns = 2
+
+	pool, err := pgxpool.NewWithConfig(ctx, cfg)
+	require.NoError(t, err)
+	t.Cleanup(pool.Close)
+
+	exec := executor.New(pool, tracker.New(pool),
+		executor.WithLockTimeout(10*time.Second),
+		executor.WithStatementTimeout(30*time.Second),
+	)
+	require.NoError(t, exec.Apply(ctx, makeMigrations()[:1]))
+
+	// Hold both connections at once so every connection in the pool is checked.
+	for range cfg.MaxConns {
+		conn, err := pool.Acquire(ctx)
+		require.NoError(t, err)
+		t.Cleanup(conn.Release)
+
+		var lockTimeout, stmtTimeout string
+		require.NoError(t, conn.QueryRow(ctx,
+			"SELECT current_setting('lock_timeout'), current_setting('statement_timeout')",
+		).Scan(&lockTimeout, &stmtTimeout))
+
+		assert.Equal(t, "0", lockTimeout, "lock_timeout leaked onto pooled connection")
+		assert.Equal(t, "0", stmtTimeout, "statement_timeout leaked onto pooled connection")
+	}
 }
 
 func TestApply_failedMigration_reportsError(t *testing.T) {
