@@ -74,10 +74,11 @@ cmd/migrate/main.go → internal/cli/ → internal/{parser,migration,analyzer,pl
 
 - **Enforced:** 80% total, computed by `make coverage-check` (same gate in pre-push and CI) after
   excluding four integration-only files: `database/advisory_lock.go`, `tracker/tracker.go`,
-  `executor/transaction.go`, `executor/safety.go`. Currently 82.3%.
-- **Not enforced:** the per-path thresholds in `.testcoverage.yml` (90% rules, 85% executor,
-  70% per-file). No tool reads that file; treat them as goals. Raw unit coverage today:
-  rules 86.9%, executor 76.6%, cli 69.8%.
+  `executor/transaction.go`, `executor/safety.go`. `COVERAGE_MIN` and `COVERAGE_EXCLUDE` in the
+  Makefile are the only source of truth; there are no per-package or per-file gates.
+- **Raw unit coverage (2026-09-25):** 81.4% total after exclusions; rules 86.9%, executor 76.0%,
+  cli 67.9% (part of `runApply` is covered by `internal/cli/apply_integration_test.go`).
+  Aim for 90%+ on new rules, but don't block a PR on a package number nothing enforces.
 - **Low by design:** `internal/tracker` (2.6%) and `internal/database` (29%) are thin pgx wrappers
   exercised by `integration/` (testcontainers, `-tags=integration`, `make test-integration`).
   Don't ask for unit tests with a mocked pool there; ask for an integration test.
@@ -148,4 +149,4 @@ unused params/results (unparam, revive). If lint passes, these are settled.
 
 ## References
 
-`plans/prd.md` (requirements) | `plans/implementation_plan.md` (9-phase plan) | `plans/checklist.md` (checklist) | `plans/phases/` (phase plans) | `.golangci.yml` | `.testcoverage.yml` | `.github/workflows/ci.yml`
+`plans/prd.md` (requirements) | `plans/implementation_plan.md` (9-phase plan) | `plans/checklist.md` (checklist) | `plans/phases/` (phase plans) | `.golangci.yml` | `.github/workflows/ci.yml`

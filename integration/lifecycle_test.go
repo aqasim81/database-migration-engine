@@ -244,7 +244,7 @@ func TestApply_advisoryLock_preventsConcurrentRuns(t *testing.T) {
 	// Acquire the advisory lock before calling Apply.
 	lock, err := database.TryAcquireLock(ctx, pool)
 	require.NoError(t, err)
-	defer lock.Release(ctx) //nolint:errcheck // test cleanup
+	defer lock.Release(ctx)
 
 	tr := tracker.New(pool)
 	exec := executor.New(pool, tr)

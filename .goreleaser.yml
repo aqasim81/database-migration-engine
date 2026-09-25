@@ -23,7 +23,7 @@ builds:
     # Docker-based cross-compiler like goreleaser-cross.
 
 archives:
-  - format: tar.gz
+  - formats: [tar.gz]
     name_template: >-
       {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
 
