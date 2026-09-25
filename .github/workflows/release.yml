@@ -4,14 +4,26 @@ on:
   push:
     tags:
       - "v*"
+  # Dry-run the release on PRs that could break it, so problems surface
+  # before a tag is pushed rather than after.
+  pull_request:
+    paths:
+      - .goreleaser.yml
+      - .github/workflows/release.yml
+      - go.mod
+      - go.sum
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   release:
-    name: Release
-    runs-on: ubuntu-latest
+    name: ${{ github.event_name == 'push' && 'Release' || 'Release (snapshot)' }}
+    # macOS: darwin builds need the macOS SDK; linux is cross-built with zig.
+    # See the header of .goreleaser.yml.
+    runs-on: macos-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -19,13 +31,16 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: stable
+          go-version-file: go.mod
+
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
           version: "~> v2"
-          args: release --clean
+          args: ${{ github.event_name == 'push' && 'release --clean' || 'release --snapshot --clean' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CGO_ENABLED: "1"
