@@ -4,6 +4,10 @@
 
 Zero-downtime PostgreSQL schema migration CLI. Parses SQL with the real PostgreSQL parser, detects dangerous DDL operations that cause table locks and outages, suggests safe alternatives, and executes migrations with rollback capability.
 
+![migrate catching a blocking CREATE INDEX, refusing to apply it, then applying the CONCURRENTLY fix](docs/demo.gif)
+
+**Try it:** `make demo` (needs Go and Docker) runs the same walkthrough against a throwaway PostgreSQL container.
+
 ## Why
 
 Most migration tools blindly execute SQL files. A single `CREATE INDEX` on a large table can lock writes for minutes and take down production. **migrate** catches these problems before they reach your database.
