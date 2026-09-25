@@ -56,7 +56,18 @@ Most migration tools blindly execute SQL files. A single `CREATE INDEX` on a lar
 
 ### Install
 
-**From source** (requires Go 1.22+ and a C compiler — `CGO_ENABLED=1`):
+**Download a binary** from [GitHub Releases](https://github.com/aqasim81/database-migration-engine/releases): macOS (Apple silicon and Intel) and Linux x86-64. The Linux binary is statically linked, so it runs on any distro.
+
+```bash
+VERSION=0.1.0
+OS_ARCH=darwin_arm64   # or darwin_amd64, linux_amd64
+curl -sSfL "https://github.com/aqasim81/database-migration-engine/releases/download/v${VERSION}/database-migration-engine_${VERSION}_${OS_ARCH}.tar.gz" | tar -xz migrate
+./migrate --version
+```
+
+The macOS binaries aren't notarized. `curl` downloads run as-is, but if you download through a browser, clear the quarantine flag first: `xattr -d com.apple.quarantine migrate`.
+
+**From source** (requires Go 1.25+ and a C compiler — `CGO_ENABLED=1`):
 
 ```bash
 go install github.com/aqasim81/database-migration-engine/cmd/migrate@latest
@@ -70,8 +81,6 @@ cd database-migration-engine
 make build
 # Binary at ./bin/migrate
 ```
-
-**Download binary** from [GitHub Releases](https://github.com/aqasim81/database-migration-engine/releases).
 
 ### Analyze Your Migrations
 
@@ -334,7 +343,7 @@ migrations/
 
 ### Prerequisites
 
-- **Go 1.22+** with a C compiler (`CGO_ENABLED=1` required for `pg_query_go`)
+- **Go 1.25+** with a C compiler (`CGO_ENABLED=1` required for `pg_query_go`)
 - **Docker** (for integration tests via testcontainers)
 - **golangci-lint** (installed via `make install-tools`)
 
