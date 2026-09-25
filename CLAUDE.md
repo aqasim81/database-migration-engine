@@ -141,12 +141,16 @@ unused params/results (unparam, revive). If lint passes, these are settled.
 
 ## Session Workflow
 
-1. `/clear` → read `CLAUDE.md` → check `plans/checklist.md` for current phase
-2. Read relevant phase plan from `plans/phases/`
+Internal planning and operational docs live in `plans/`, which is gitignored and local only; they are not in the public repo.
+
+1. `/clear` → read `CLAUDE.md` → check `plans/status.md` for current state and `plans/runbook.md` for how-tos
+2. For new work, read or create the relevant plan in `plans/`
 3. Implement in small chunks, test after each
 4. `make audit` before committing
-5. Update `plans/checklist.md` after completing a phase step
+5. Update `plans/status.md` (and `plans/checklist.md` for phase work) when a step completes
 
 ## References
 
-`plans/prd.md` (requirements) | `plans/implementation_plan.md` (9-phase plan) | `plans/checklist.md` (checklist) | `plans/phases/` (phase plans) | `.golangci.yml` | `.github/workflows/ci.yml`
+Public: `.golangci.yml` | `.github/workflows/ci.yml` | `.github/workflows/release.yml` | `docs/adr/`
+
+Local only (`plans/`, gitignored): `runbook.md` (release, env quirks, harness reuse, to-dos) | `demo.md` (demo recording script) | `status.md` (project status) | `prd.md` (requirements) | `implementation_plan.md` (9-phase plan) | `checklist.md` | `phases/`
